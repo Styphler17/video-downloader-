@@ -9,7 +9,7 @@ async function init() {
   applyTheme();
   document.getElementById("themeToggle").onclick = toggleTheme;
   document.getElementById("refresh").onclick = render;
-  document.getElementById("record").onclick = startRecord;
+  document.getElementById("record").onclick = openTabPicker;
   document.getElementById("screenshot").onclick = screenshot;
   document.getElementById("fullPageBtn").onclick = openFullPage;
   const tab = await getActiveTab();
@@ -36,6 +36,8 @@ async function init() {
     }
     if (msg && msg.kind === 'recording-status') {
       updateRecPanel(msg.active || []);
+      // update tab picker badges if open
+      if (document.getElementById('tabPicker')?.style.display !== 'none') renderTabPicker();
     }
   });
   await render();
@@ -341,6 +343,69 @@ async function openFullPage() {
   chrome.tabs.create({
     url: chrome.runtime.getURL(`popup/fullpage.html?tabId=${tab.id}`),
   });
+}
+
+function getAllTabs() {
+  return new Promise((resolve) => chrome.tabs.query({}, resolve));
+}
+
+async function openTabPicker() {
+  const panel = document.getElementById('tabPicker');
+  if (!panel) return;
+  panel.style.display = '';
+  const closeBtn = document.getElementById('closeTabPicker');
+  const search = document.getElementById('tabSearch');
+  if (closeBtn) closeBtn.onclick = () => { panel.style.display = 'none'; };
+  if (search && !search.__bound) {
+    search.__bound = true;
+    search.addEventListener('input', () => renderTabPicker());
+  }
+  await renderTabPicker();
+}
+
+async function renderTabPicker() {
+  const list = document.getElementById('tabList');
+  const search = document.getElementById('tabSearch');
+  if (!list) return;
+  const tabs = await getAllTabs();
+  const rec = await chrome.runtime.sendMessage({ kind: 'get-recording-status' });
+  const active = new Set((rec && rec.active) || []);
+  const q = (search?.value || '').toLowerCase();
+  list.innerHTML = '';
+  for (const t of tabs) {
+    if (!t || !t.id) continue;
+    const title = t.title || t.url || `Tab ${t.id}`;
+    if (q && !title.toLowerCase().includes(q)) continue;
+    const li = document.createElement('li');
+    li.className = 'tab-item';
+    li.innerHTML = `
+      <div class="left">
+        <img class="fav" src="${t.favIconUrl || ''}" onerror="this.style.display='none'"/>
+        <div class="title">${escapeHtml(title)}</div>
+        <div class="meta">${t.active ? 'Active' : 'Inactive'} • Window ${t.windowId}</div>
+      </div>
+      <div class="actions">
+        <button class="switch">Switch</button>
+        <button class="rec">${active.has(t.id) ? 'Recording…' : 'Record'}</button>
+      </div>
+    `;
+    li.querySelector('.switch').onclick = async () => {
+      await chrome.windows.update(t.windowId, { focused: true });
+      await chrome.tabs.update(t.id, { active: true });
+    };
+    const recBtn = li.querySelector('.rec');
+    if (active.has(t.id)) recBtn.disabled = true;
+    recBtn.onclick = async () => {
+      const resp = await chrome.runtime.sendMessage({ kind: 'record-start', tabId: t.id, options: { mode: 'tab' } });
+      if (resp && resp.error) alert(resp.error);
+      else recBtn.textContent = 'Recording…', recBtn.disabled = true;
+    };
+    list.appendChild(li);
+  }
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
 }
 
 function setupRecPanel() {

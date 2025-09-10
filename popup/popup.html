@@ -14,7 +14,7 @@
 
     <section id="controls">
       <button id="refresh">⟳ Refresh</button>
-      <button id="record">⏺ Record Tab</button>
+      <button id="record">⏺ Record</button>
       <button id="screenshot">📸 Screenshot</button>
       <button id="fullPageBtn">📃 Full Page</button>
     </section>
@@ -38,6 +38,17 @@
           <button id="recStopBtn">Stop</button>
         </div>
       </div>
+    </section>
+
+    <section id="tabPicker" class="sheet" style="display:none">
+      <div class="sheet-header">
+        <strong>Select a tab to record (max 10)</strong>
+        <button id="closeTabPicker" class="icon-btn" aria-label="Close">✕</button>
+      </div>
+      <div class="sheet-controls">
+        <input id="tabSearch" type="text" placeholder="Search tabs..." />
+      </div>
+      <ul id="tabList" class="tab-list"></ul>
     </section>
 
     <ul id="list"></ul>
