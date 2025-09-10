@@ -36,8 +36,10 @@ async function render() {
   const msePresent = items.some((i) => i.type === "mse");
   if (tipEl) {
     if (!downloadable && msePresent) {
-      tipEl.textContent = 'Streaming detected (MSE). Use "Record Tab" to capture.';
+      tipEl.innerHTML = 'Streaming detected (MSE). <button id="tipRecord">Record Tab</button>';
       tipEl.style.display = '';
+      const tipBtn = document.getElementById('tipRecord');
+      if (tipBtn) tipBtn.onclick = startRecord;
     } else if (items.length === 0) {
       tipEl.textContent = 'No media found yet. Play a video to detect streams.';
       tipEl.style.display = '';
