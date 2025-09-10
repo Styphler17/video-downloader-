@@ -82,6 +82,8 @@ async function render() {
     const modeSel = li.querySelector(".mode");
     const dlBtn = li.querySelector(".dl");
     const playBtn = li.querySelector(".play");
+    const preview = li.querySelector('.preview');
+    const pv = li.querySelector('.preview-video');
     const moreBtn = li.querySelector('.more');
     const menu = li.querySelector('.ctx-menu');
     const menuOpen = () => menu && (menu.style.display = 'flex');
@@ -102,11 +104,11 @@ async function render() {
       dlBtn.onclick = startRecord;
       if (playBtn) { playBtn.textContent = 'Open'; playBtn.onclick = () => chrome.tabs.create({ url: item.url }); }
     } else if (isHls) {
-      if (playBtn) playBtn.onclick = () => showPreview(item.url, 'hls');
+      if (playBtn) playBtn.onclick = () => toggleInlinePreview(pv, preview, { url: item.url, kind: 'hls' });
     } else if (isDash) {
-      if (playBtn) playBtn.onclick = () => showPreview(item.url, 'dash');
+      if (playBtn) playBtn.onclick = () => toggleInlinePreview(pv, preview, { url: item.url, kind: 'dash' });
     } else {
-      if (playBtn) playBtn.onclick = () => showPreview(item.url, 'file');
+      if (playBtn) playBtn.onclick = () => toggleInlinePreview(pv, preview, { url: item.url, kind: 'file' });
       dlBtn.onclick = async () => {
         const mode = modeSel.value === "auto" ? item.type : modeSel.value;
         if (mode === "file") {
@@ -158,6 +160,7 @@ async function render() {
 
     // Generate thumbnail
     const imgEl = li.querySelector(".thumbnail");
+    imgEl.src = placeholderSvg;
     const enableThumbs = await shouldGenerateThumbs();
     if (enableThumbs && item.type === 'file') {
       generateThumbnail(item.url)
@@ -243,48 +246,54 @@ async function generateThumbnail(videoUrl) {
   });
 }
 
-let currentHls = null;
-let currentShaka = null;
+const __inlinePlayers = new WeakMap(); // videoEl -> { kind, hls, shaka }
 let shakaInited = false;
-function showPreview(url, kind = 'file') {
-  const modal = document.getElementById('previewModal');
-  const video = document.getElementById('previewVideo');
-  const closeBtn = document.getElementById('closePreview');
-  if (!modal || !video) return;
-  try { if (currentHls) { currentHls.destroy(); currentHls = null; } } catch {}
-  try { if (currentShaka) { currentShaka.destroy(); currentShaka = null; } } catch {}
+function toggleInlinePreview(videoEl, containerEl, { url, kind }) {
+  if (!videoEl || !containerEl) return;
+  const state = __inlinePlayers.get(videoEl) || {};
+  const isOpen = containerEl.style.display !== 'none';
+  if (isOpen) {
+    destroyInline(videoEl, containerEl);
+    return;
+  }
+  // Open
+  containerEl.style.display = '';
+  // Ensure previous destroyed
+  destroyInline(videoEl, containerEl);
   if (kind === 'hls' && window.Hls && window.Hls.isSupported()) {
-    currentHls = new window.Hls({ maxBufferLength: 30 });
-    currentHls.loadSource(url);
-    currentHls.attachMedia(video);
-  } else if (kind === 'hls' && video.canPlayType('application/vnd.apple.mpegurl')) {
-    video.src = url;
+    const h = new window.Hls({ maxBufferLength: 30 });
+    h.loadSource(url);
+    h.attachMedia(videoEl);
+    __inlinePlayers.set(videoEl, { kind, hls: h });
+  } else if (kind === 'hls' && videoEl.canPlayType('application/vnd.apple.mpegurl')) {
+    videoEl.src = url;
+    __inlinePlayers.set(videoEl, { kind });
   } else if (kind === 'dash' && window.shaka) {
+    if (!shakaInited) { window.shaka.polyfill.installAll(); shakaInited = true; }
     try {
-      if (!shakaInited) { window.shaka.polyfill.installAll(); shakaInited = true; }
-      currentShaka = new window.shaka.Player(video);
-      currentShaka.load(url).catch(() => { window.open(url, '_blank'); });
+      const p = new window.shaka.Player(videoEl);
+      p.load(url).catch(() => { chrome.tabs.create({ url }); });
+      __inlinePlayers.set(videoEl, { kind, shaka: p });
     } catch {
-      window.open(url, '_blank');
+      chrome.tabs.create({ url });
     }
   } else {
-    video.src = url;
+    videoEl.src = url;
+    __inlinePlayers.set(videoEl, { kind });
   }
-  modal.style.display = '';
-  closeBtn.onclick = hidePreview;
-  modal.onclick = (e) => { if (e.target === modal) hidePreview(); };
 }
 
-function hidePreview() {
-  const modal = document.getElementById('previewModal');
-  const video = document.getElementById('previewVideo');
-  if (!modal || !video) return;
-  try { if (currentHls) { currentHls.destroy(); currentHls = null; } } catch {}
-  try { if (currentShaka) { currentShaka.destroy(); currentShaka = null; } } catch {}
-  try { video.pause(); } catch {}
-  video.removeAttribute('src');
-  video.load();
-  modal.style.display = 'none';
+function destroyInline(videoEl, containerEl) {
+  const st = __inlinePlayers.get(videoEl);
+  if (st) {
+    try { if (st.hls) st.hls.destroy(); } catch {}
+    try { if (st.shaka) st.shaka.destroy(); } catch {}
+  }
+  try { videoEl.pause(); } catch {}
+  videoEl.removeAttribute('src');
+  videoEl.load();
+  containerEl.style.display = 'none';
+  __inlinePlayers.delete(videoEl);
 }
 
 function shouldGenerateThumbs() {

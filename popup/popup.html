@@ -47,19 +47,11 @@
             <button class="ctx-download">Download</button>
           </div>
         </div>
+        <div class="preview">
+          <video class="preview-video" controls playsinline></video>
+        </div>
       </li>
     </template>
-
-    <!-- Inline preview modal -->
-    <div id="previewModal" class="modal" style="display:none">
-      <div class="modal-content">
-        <div class="modal-header">
-          <span>Preview</span>
-          <button id="closePreview" class="icon-btn" aria-label="Close">✕</button>
-        </div>
-        <video id="previewVideo" controls style="width:100%; max-height:320px; background:#000"></video>
-      </div>
-    </div>
 
     <script src="../libs/hls.min.js"></script>
     <script src="../libs/shaka-player.compiled.js"></script>

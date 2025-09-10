@@ -44,6 +44,9 @@
             <button class="ctx-download">Download</button>
           </div>
         </div>
+        <div class="preview">
+          <video class="preview-video" controls playsinline></video>
+        </div>
       </li>
     </template>
 
@@ -73,6 +76,8 @@
         </li>
     </template>
 
+    <script src="../libs/hls.min.js"></script>
+    <script src="../libs/shaka-player.compiled.js"></script>
     <script type="module" src="fullpage.js"></script>
   </body>
   </html>

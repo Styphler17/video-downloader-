@@ -57,6 +57,8 @@ async function render() {
       const modeSel = li.querySelector(".mode");
       const dlBtn = li.querySelector(".dl");
       const playBtn = li.querySelector(".play");
+      const preview = li.querySelector('.preview');
+      const pv = li.querySelector('.preview-video');
       const moreBtn = li.querySelector('.more');
       const menu = li.querySelector('.ctx-menu');
       const menuOpen = () => menu && (menu.style.display = 'flex');
@@ -68,18 +70,21 @@ async function render() {
           if (!visible) menuOpen();
         };
       }
+      const isHls = item.type === 'hls' || /\.m3u8(\?|#|$)/i.test(item.url || '');
+      const isDash = item.type === 'dash' || /\.mpd(\?|#|$)/i.test(item.url || '');
       if (item.type === 'mse') {
         modeSel.style.display = 'none';
         dlBtn.textContent = 'Record Tab';
         dlBtn.onclick = async () => {
           await chrome.runtime.sendMessage({ kind: 'record-start', tabId });
         };
-        if (playBtn) {
-          playBtn.textContent = 'Open';
-          playBtn.onclick = () => chrome.tabs.create({ url: item.url });
-        }
+        if (playBtn) { playBtn.textContent = 'Open'; playBtn.onclick = () => chrome.tabs.create({ url: item.url }); }
       } else {
-        if (playBtn) { playBtn.onclick = () => chrome.tabs.create({ url: item.url }); }
+        if (playBtn) {
+          if (isHls) playBtn.onclick = () => toggleInlinePreview(pv, preview, { url: item.url, kind: 'hls' });
+          else if (isDash) playBtn.onclick = () => toggleInlinePreview(pv, preview, { url: item.url, kind: 'dash' });
+          else playBtn.onclick = () => toggleInlinePreview(pv, preview, { url: item.url, kind: 'file' });
+        }
         dlBtn.onclick = async () => {
           const mode = modeSel.value === "auto" ? item.type : modeSel.value;
           if (mode === "file") {
@@ -107,6 +112,7 @@ async function render() {
 
       // Generate thumbnail
       const imgEl = li.querySelector(".thumbnail");
+      imgEl.src = placeholderSvg;
       const enableThumbs = await shouldGenerateThumbs();
       if (enableThumbs && item.type === 'file') {
         generateThumbnail(item.url)
@@ -300,4 +306,47 @@ function shouldGenerateThumbs() {
       resolve(st.genThumbs !== false);
     });
   });
+}
+
+// Inline preview helpers (HLS/DASH/file)
+const __inlinePlayers = new WeakMap();
+let shakaInited = false;
+function toggleInlinePreview(videoEl, containerEl, { url, kind }) {
+  if (!videoEl || !containerEl) return;
+  const isOpen = containerEl.style.display !== 'none';
+  if (isOpen) { return destroyInline(videoEl, containerEl); }
+  containerEl.style.display = '';
+  destroyInline(videoEl, containerEl);
+  if (kind === 'hls' && window.Hls && window.Hls.isSupported()) {
+    const h = new window.Hls({ maxBufferLength: 30 });
+    h.loadSource(url);
+    h.attachMedia(videoEl);
+    __inlinePlayers.set(videoEl, { kind, hls: h });
+  } else if (kind === 'hls' && videoEl.canPlayType('application/vnd.apple.mpegurl')) {
+    videoEl.src = url;
+    __inlinePlayers.set(videoEl, { kind });
+  } else if (kind === 'dash' && window.shaka) {
+    if (!shakaInited) { window.shaka.polyfill.installAll(); shakaInited = true; }
+    try {
+      const p = new window.shaka.Player(videoEl);
+      p.load(url).catch(() => { chrome.tabs.create({ url }); });
+      __inlinePlayers.set(videoEl, { kind, shaka: p });
+    } catch { chrome.tabs.create({ url }); }
+  } else {
+    videoEl.src = url;
+    __inlinePlayers.set(videoEl, { kind });
+  }
+}
+
+function destroyInline(videoEl, containerEl) {
+  const st = __inlinePlayers.get(videoEl);
+  if (st) {
+    try { if (st.hls) st.hls.destroy(); } catch {}
+    try { if (st.shaka) st.shaka.destroy(); } catch {}
+  }
+  try { videoEl.pause(); } catch {}
+  videoEl.removeAttribute('src');
+  videoEl.load();
+  containerEl.style.display = 'none';
+  __inlinePlayers.delete(videoEl);
 }
