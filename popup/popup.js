@@ -55,18 +55,17 @@ async function render() {
     const modeSel = li.querySelector(".mode");
     const dlBtn = li.querySelector(".dl");
     const playBtn = li.querySelector(".play");
+    const isHls = item.type === 'hls' || /\.m3u8(\?|#|$)/i.test(item.url || '');
     if (item.type === 'mse') {
       // Suggest recording for MSE streams
       modeSel.style.display = 'none';
       dlBtn.textContent = 'Record Tab';
       dlBtn.onclick = startRecord;
-      // Play button becomes Open for non-file streams
-      if (playBtn) {
-        playBtn.textContent = 'Open';
-        playBtn.onclick = () => chrome.tabs.create({ url: item.url });
-      }
+      if (playBtn) { playBtn.textContent = 'Open'; playBtn.onclick = () => chrome.tabs.create({ url: item.url }); }
+    } else if (isHls) {
+      if (playBtn) playBtn.onclick = () => showPreview(item.url, 'hls');
     } else {
-      if (playBtn) playBtn.onclick = () => showPreview(item.url);
+      if (playBtn) playBtn.onclick = () => showPreview(item.url, 'file');
       dlBtn.onclick = async () => {
         const mode = modeSel.value === "auto" ? item.type : modeSel.value;
         if (mode === "file") {
@@ -94,7 +93,8 @@ async function render() {
 
     // Generate thumbnail
     const imgEl = li.querySelector(".thumbnail");
-    if (item.type === 'file') {
+    const enableThumbs = await shouldGenerateThumbs();
+    if (enableThumbs && item.type === 'file') {
       generateThumbnail(item.url)
         .then((thumbSrc) => { imgEl.src = thumbSrc; })
         .catch(() => { imgEl.src = placeholderSvg; });
@@ -164,12 +164,22 @@ async function generateThumbnail(videoUrl) {
   });
 }
 
-function showPreview(url) {
+let currentHls = null;
+function showPreview(url, kind = 'file') {
   const modal = document.getElementById('previewModal');
   const video = document.getElementById('previewVideo');
   const closeBtn = document.getElementById('closePreview');
   if (!modal || !video) return;
-  video.src = url;
+  try { if (currentHls) { currentHls.destroy(); currentHls = null; } } catch {}
+  if (kind === 'hls' && window.Hls && window.Hls.isSupported()) {
+    currentHls = new window.Hls({ maxBufferLength: 30 });
+    currentHls.loadSource(url);
+    currentHls.attachMedia(video);
+  } else if (kind === 'hls' && video.canPlayType('application/vnd.apple.mpegurl')) {
+    video.src = url;
+  } else {
+    video.src = url;
+  }
   modal.style.display = '';
   closeBtn.onclick = hidePreview;
   modal.onclick = (e) => { if (e.target === modal) hidePreview(); };
@@ -179,10 +189,19 @@ function hidePreview() {
   const modal = document.getElementById('previewModal');
   const video = document.getElementById('previewVideo');
   if (!modal || !video) return;
+  try { if (currentHls) { currentHls.destroy(); currentHls = null; } } catch {}
   try { video.pause(); } catch {}
   video.removeAttribute('src');
   video.load();
   modal.style.display = 'none';
+}
+
+function shouldGenerateThumbs() {
+  return new Promise((resolve) => {
+    chrome.storage.sync.get(['genThumbs'], (st) => {
+      resolve(st.genThumbs !== false);
+    });
+  });
 }
 
 async function startRecord() {

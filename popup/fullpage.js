@@ -90,7 +90,8 @@ async function render() {
 
       // Generate thumbnail
       const imgEl = li.querySelector(".thumbnail");
-      if (item.type === 'file') {
+      const enableThumbs = await shouldGenerateThumbs();
+      if (enableThumbs && item.type === 'file') {
         generateThumbnail(item.url)
           .then((thumbSrc) => { imgEl.src = thumbSrc; })
           .catch(() => { imgEl.src = placeholderSvg; });
@@ -197,4 +198,12 @@ function toggleTheme() {
   const light = !document.documentElement.classList.contains("light");
   document.documentElement.classList.toggle("light", light);
   chrome.storage.sync.set({ theme: light ? "light" : "dark" });
+}
+
+function shouldGenerateThumbs() {
+  return new Promise((resolve) => {
+    chrome.storage.sync.get(['genThumbs'], (st) => {
+      resolve(st.genThumbs !== false);
+    });
+  });
 }
