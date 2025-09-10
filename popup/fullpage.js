@@ -100,53 +100,35 @@ async function render() {
   }
 }
 
-async function generateThumbnail(url) {
+async function generateThumbnail(videoUrl) {
   return new Promise((resolve, reject) => {
+    if (
+      videoUrl.startsWith("chrome://") ||
+      videoUrl.startsWith("chrome-extension://")
+    ) {
+      reject(new Error("Cannot access chrome:// or chrome-extension:// URLs"));
+      return;
+    }
     const video = document.createElement("video");
     video.crossOrigin = "anonymous";
     video.preload = "metadata";
-    video.src = url;
+    video.src = videoUrl;
     video.currentTime = 1; // Seek to 1 second
-    video.onloadeddata = () => {
+    video.onloadedmetadata = () => {
+      if (video.videoWidth === 0) {
+        reject(new Error("Video has no dimensions"));
+        return;
+      }
       const canvas = document.createElement("canvas");
       canvas.width = 64;
-      canvas.height = 64;
+      canvas.height = (64 / video.videoWidth) * video.videoHeight;
       const ctx = canvas.getContext("2d");
-      ctx.drawImage(video, 0, 0, 64, 64);
-      resolve(canvas.toDataURL("image/jpeg"));
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL("image/jpeg");
+      resolve(dataUrl);
     };
     video.onerror = reject;
-  });
-}
-
-function applyTheme() {
-  chrome.storage.sync.get(["theme"], ({ theme }) => {
-    document.documentElement.classList.toggle("light", theme === "light");
-  });
-}
-
-function toggleTheme() {
-  const light = !document.documentElement.classList.contains("light");
-  document.documentElement.classList.toggle("light", light);
-  chrome.storage.sync.set({ theme: light ? "light" : "dark" });
-}
-
-async function generateThumbnail(url) {
-  return new Promise((resolve, reject) => {
-    const video = document.createElement('video');
-    video.crossOrigin = 'anonymous';
-    video.preload = 'metadata';
-    video.src = url;
-    video.currentTime = 1; // Seek to 1 second
-    video.onloadeddata = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = 64;
-      canvas.height = 64;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(video, 0, 0, 64, 64);
-      resolve(canvas.toDataURL('image/jpeg'));
-    };
-    video.onerror = reject;
+    video.load();
   });
 }
 

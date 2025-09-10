@@ -8,6 +8,17 @@ function updateBadgeCount(tabId) {
   chrome.action.setBadgeBackgroundColor({ color: '#3b82f6', tabId });
 }
 
+// Ensure unique additions for a tab's media list
+function upsertMediaItem(tabId, item) {
+  if (typeof tabId !== 'number' || tabId < 0) return;
+  const list = mediaLists.get(tabId) || [];
+  if (!list.some((x) => x.url === item.url)) {
+    list.push(item);
+    mediaLists.set(tabId, list);
+    updateBadgeCount(tabId);
+  }
+}
+
 // Helper functions
 function resolveUrl(base, rel) {
   try {
@@ -134,3 +145,39 @@ chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
 chrome.tabs.onRemoved.addListener((tabId) => {
   mediaLists.delete(tabId);
 });
+
+// Observe network requests to detect media (HLS/DASH/direct files)
+try {
+  // Based on response headers (content-type) and URL patterns
+  chrome.webRequest.onHeadersReceived.addListener(
+    (details) => {
+      const { tabId, url, responseHeaders } = details;
+      const ct = (responseHeaders || [])
+        .find((h) => h.name && h.name.toLowerCase() === 'content-type')?.value || '';
+      let type = null;
+      if (isHls(url, ct)) type = 'hls';
+      else if (isDash(url, ct)) type = 'dash';
+      else if (isVideoLikeUrl(url) || /^video\//i.test(ct)) type = 'file';
+      if (!type) return;
+      upsertMediaItem(tabId, { id: `net:${url}`, url, type, contentType: ct });
+    },
+    { urls: ['<all_urls>'] },
+    ['responseHeaders', 'extraHeaders']
+  );
+
+  // Fallback purely on URL patterns (some servers hide content-type via CORS)
+  chrome.webRequest.onBeforeRequest.addListener(
+    (details) => {
+      const { tabId, url } = details;
+      let type = null;
+      if (isHls(url)) type = 'hls';
+      else if (isDash(url)) type = 'dash';
+      else if (isVideoLikeUrl(url)) type = 'file';
+      if (!type) return;
+      upsertMediaItem(tabId, { id: `req:${url}`, url, type, contentType: '' });
+    },
+    { urls: ['<all_urls>'], types: ['media', 'xmlhttprequest', 'other'] }
+  );
+} catch (e) {
+  console.warn('webRequest listeners not available:', e);
+}
