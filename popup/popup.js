@@ -394,11 +394,16 @@ async function renderTabPicker() {
       await chrome.tabs.update(t.id, { active: true });
     };
     const recBtn = li.querySelector('.rec');
-    if (active.has(t.id)) recBtn.disabled = true;
+    if (active.has(t.id)) recBtn.textContent = 'Stop';
     recBtn.onclick = async () => {
-      const resp = await chrome.runtime.sendMessage({ kind: 'record-start', tabId: t.id, options: { mode: 'tab' } });
-      if (resp && resp.error) alert(resp.error);
-      else recBtn.textContent = 'Recording…', recBtn.disabled = true;
+      if (active.has(t.id)) {
+        await chrome.runtime.sendMessage({ kind: 'record-stop', tabId: t.id });
+        recBtn.textContent = 'Record'; active.delete(t.id);
+      } else {
+        const resp = await chrome.runtime.sendMessage({ kind: 'record-start', tabId: t.id, options: { mode: 'tab', tabAudio: true } });
+        if (resp && resp.error) alert(resp.error);
+        else recBtn.textContent = 'Stop', active.add(t.id);
+      }
     };
     list.appendChild(li);
   }

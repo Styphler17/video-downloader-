@@ -194,7 +194,7 @@ chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
       }
       await ensureOffscreenRecorder();
       const key = String(msg.tabId);
-      chrome.runtime.sendMessage({ kind: 'offscreen-rec-start', key, mode: (msg.options && msg.options.mode) || 'tab', tabId: msg.tabId, mimeType: (msg.options && msg.options.mimeType) || 'video/webm;codecs=vp9', maxMs: (msg.options && msg.options.maxMs) || 30*60*1000 }, (resp) => {
+      chrome.runtime.sendMessage({ kind: 'offscreen-rec-start', key, mode: (msg.options && msg.options.mode) || 'tab', tabId: msg.tabId, mimeType: (msg.options && msg.options.mimeType) || 'video/webm;codecs=vp9', maxMs: (msg.options && msg.options.maxMs) || 30*60*1000, tabAudio: !!(msg.options && msg.options.tabAudio), mic: !!(msg.options && msg.options.mic) }, (resp) => {
         if (chrome.runtime.lastError) { sendResponse({ error: chrome.runtime.lastError.message }); return; }
         if (resp && resp.error) { sendResponse(resp); return; }
         activeRecordings.add(msg.tabId);
