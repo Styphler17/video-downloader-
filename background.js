@@ -1,6 +1,7 @@
 import { isVideoLikeUrl, isHls, isDash, filenameFromUrl, sleep } from './utils/common.js';
 
 const mediaLists = new Map(); // tabId -> items
+const activeRecordings = new Set(); // tabIds actively recording
 
 function updateBadgeCount(tabId) {
   const items = mediaLists.get(tabId) || [];
@@ -152,6 +153,8 @@ chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
   if (msg.kind === 'get-media-list') {
     const items = mediaLists.get(msg.tabId) || [];
     sendResponse({ items });
+  } else if (msg.kind === 'get-recording-status') {
+    sendResponse({ active: Array.from(activeRecordings) });
   } else if (msg.kind === 'download-hls') {
     const result = await withOffscreen(() => chrome.runtime.sendMessage({ kind: 'offscreen-hls', url: msg.url, options: msg.options }));
     sendResponse(result);
@@ -179,23 +182,33 @@ chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
     });
     sendResponse();
   } else if (msg.kind === 'record-start') {
-    chrome.tabs.get(msg.tabId, (tab) => {
+    chrome.tabs.get(msg.tabId, async (tab) => {
+      if (!tab) { sendResponse({ error: 'Tab not found' }); return; }
       if (tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://')) {
-        console.warn('Cannot record chrome:// or chrome-extension:// URLs');
         sendResponse({ error: 'Cannot record chrome:// or chrome-extension:// URLs' });
-      } else {
-        chrome.scripting.executeScript({
-          target: { tabId: msg.tabId },
-          files: ['recorder/tab-recorder.js']
-        });
-        sendResponse();
+        return;
       }
+      if (activeRecordings.size >= 10 && !activeRecordings.has(msg.tabId)) {
+        sendResponse({ error: 'Max 10 concurrent recordings reached' });
+        return;
+      }
+      activeRecordings.add(msg.tabId);
+      try { await chrome.tabs.sendMessage(msg.tabId, { kind: 'recorder-start', options: msg.options || {} }); } catch {}
+      try { chrome.runtime.sendMessage({ kind: 'recording-status', active: Array.from(activeRecordings) }); } catch {}
+      sendResponse();
     });
-} else if (msg.kind === 'recorder-finished') {
+  } else if (msg.kind === 'record-stop') {
+    try { await chrome.tabs.sendMessage(msg.tabId, { kind: 'recorder-stop' }); } catch {}
+    activeRecordings.delete(msg.tabId);
+    try { chrome.runtime.sendMessage({ kind: 'recording-status', active: Array.from(activeRecordings) }); } catch {}
+    sendResponse();
+  } else if (msg.kind === 'recorder-finished') {
   // Store recording in history instead of auto downloading
   const recordings = (await chrome.storage.local.get(['recordings'])).recordings || [];
   recordings.push({ url: msg.url, timestamp: Date.now(), filename: `recording-${Date.now()}.webm` });
   await chrome.storage.local.set({ recordings });
+  try { activeRecordings.delete((sender && sender.tab && sender.tab.id) ? sender.tab.id : msg.tabId); } catch {}
+  try { chrome.runtime.sendMessage({ kind: 'recording-status', active: Array.from(activeRecordings) }); } catch {}
   sendResponse();
 }
   return true;
@@ -204,6 +217,7 @@ chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
 // Clear badge when tab is closed
 chrome.tabs.onRemoved.addListener((tabId) => {
   mediaLists.delete(tabId);
+  activeRecordings.delete(tabId);
 });
 
 // Observe network requests to detect media (HLS/DASH/direct files)

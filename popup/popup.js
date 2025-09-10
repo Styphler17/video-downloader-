@@ -14,6 +14,7 @@ async function init() {
   document.getElementById("fullPageBtn").onclick = openFullPage;
   const tab = await getActiveTab();
   window.__activeTabId = tab?.id;
+  setupRecPanel();
   chrome.runtime.onMessage.addListener((msg) => {
     if (msg && msg.kind === 'media-list-updated' && msg.tabId === window.__activeTabId) {
       scheduleRender();
@@ -32,6 +33,9 @@ async function init() {
       const stEl = document.getElementById('status');
       if (stEl) { stEl.textContent = 'HLS download complete'; setTimeout(() => { stEl.style.display = 'none'; }, 1500); }
       window.__activeDownloadUrl = null;
+    }
+    if (msg && msg.kind === 'recording-status') {
+      updateRecPanel(msg.active || []);
     }
   });
   await render();
@@ -52,6 +56,11 @@ async function render() {
     kind: "get-media-list",
     tabId: tab.id,
   });
+  // update recording state
+  try {
+    const rec = await chrome.runtime.sendMessage({ kind: 'get-recording-status' });
+    updateRecPanel((rec && rec.active) || []);
+  } catch {}
   const tipEl = document.getElementById("tip");
   listEl.innerHTML = "";
   const items = res.items || [];
@@ -159,16 +168,7 @@ async function render() {
     }
 
     // Generate thumbnail
-    const imgEl = li.querySelector(".thumbnail");
-    imgEl.src = placeholderSvg;
-    const enableThumbs = await shouldGenerateThumbs();
-    if (enableThumbs && item.type === 'file') {
-      generateThumbnail(item.url)
-        .then((thumbSrc) => { imgEl.src = thumbSrc; })
-        .catch(() => { imgEl.src = placeholderSvg; });
-    } else {
-      imgEl.src = placeholderSvg;
-    }
+    // Thumbnails disabled per request
 
     listEl.appendChild(li);
   }
@@ -341,4 +341,28 @@ async function openFullPage() {
   chrome.tabs.create({
     url: chrome.runtime.getURL(`popup/fullpage.html?tabId=${tab.id}`),
   });
+}
+
+function setupRecPanel() {
+  const startBtn = document.getElementById('recStartBtn');
+  const stopBtn = document.getElementById('recStopBtn');
+  if (startBtn) startBtn.onclick = async () => {
+    const tab = await getActiveTab();
+    const resp = await chrome.runtime.sendMessage({ kind: 'record-start', tabId: tab.id, options: {} });
+    if (resp && resp.error) alert(resp.error);
+  };
+  if (stopBtn) stopBtn.onclick = async () => {
+    const tab = await getActiveTab();
+    await chrome.runtime.sendMessage({ kind: 'record-stop', tabId: tab.id });
+  };
+}
+
+function updateRecPanel(activeIds) {
+  const state = document.getElementById('recState');
+  const startBtn = document.getElementById('recStartBtn');
+  const stopBtn = document.getElementById('recStopBtn');
+  const isActive = Array.isArray(activeIds) && activeIds.includes(window.__activeTabId);
+  if (state) state.textContent = isActive ? 'Recording' : 'Idle';
+  if (startBtn) startBtn.disabled = isActive;
+  if (stopBtn) stopBtn.disabled = !isActive;
 }

@@ -73,10 +73,7 @@ button:hover {
   border: 1px solid #1e1e28;
 }
 .thumbnail {
-  width: 64px;
-  height: 64px;
-  object-fit: cover;
-  border-radius: 4px;
+  display: none;
 }
 .meta {
   display: flex;
@@ -129,6 +126,11 @@ button:hover {
   color: var(--fg);
   font-size: 12px;
 }
+
+.rec-panel { margin: 8px 12px; }
+.rec-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.rec-meta { display: flex; flex-direction: column; gap: 2px; }
+.rec-actions button { margin-left: 6px; }
 
 /* Simple modal */
 .modal {

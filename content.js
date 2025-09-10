@@ -43,6 +43,8 @@ setInterval(collectVideoSources, 5000);
 chrome.runtime.onMessage.addListener((msg) => {
   if (msg.kind === "recorder-start") {
     startRecorder(msg.options || {});
+  } else if (msg.kind === 'recorder-stop') {
+    try { if (window.__recorder && window.__recorder.state !== 'inactive') window.__recorder.stop(); } catch {}
   }
 });
 
@@ -80,6 +82,7 @@ async function startRecorder({
       audio: false,
     });
     const rec = new MediaRecorder(stream, { mimeType });
+    window.__recorder = rec;
     const chunks = [];
     rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
     rec.onstop = async () => {

@@ -111,16 +111,7 @@ async function render() {
       }
 
       // Generate thumbnail
-      const imgEl = li.querySelector(".thumbnail");
-      imgEl.src = placeholderSvg;
-      const enableThumbs = await shouldGenerateThumbs();
-      if (enableThumbs && item.type === 'file') {
-        generateThumbnail(item.url)
-          .then((thumbSrc) => { imgEl.src = thumbSrc; })
-          .catch(() => { imgEl.src = placeholderSvg; });
-      } else {
-        imgEl.src = placeholderSvg;
-      }
+      // Thumbnails disabled per request
 
       listEl.appendChild(li);
     }
