@@ -348,7 +348,9 @@ function setupRecPanel() {
   const stopBtn = document.getElementById('recStopBtn');
   if (startBtn) startBtn.onclick = async () => {
     const tab = await getActiveTab();
-    const resp = await chrome.runtime.sendMessage({ kind: 'record-start', tabId: tab.id, options: {} });
+    const modeSel = document.getElementById('recMode');
+    const mode = modeSel ? modeSel.value : 'tab';
+    const resp = await chrome.runtime.sendMessage({ kind: 'record-start', tabId: tab.id, options: { mode } });
     if (resp && resp.error) alert(resp.error);
   };
   if (stopBtn) stopBtn.onclick = async () => {

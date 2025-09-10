@@ -131,6 +131,7 @@ button:hover {
 .rec-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .rec-meta { display: flex; flex-direction: column; gap: 2px; }
 .rec-actions button { margin-left: 6px; }
+.rec-actions select { margin-right: 6px; }
 
 /* Simple modal */
 .modal {

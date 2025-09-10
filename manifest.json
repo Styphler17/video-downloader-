@@ -10,6 +10,8 @@
         "scripting",
         "webRequest",
         "offscreen",
+        "tabCapture",
+        "desktopCapture",
         "tabs"
     ],
     "host_permissions": [
@@ -35,7 +37,6 @@
         "<all_urls>"
       ],
       "js": [
-        "utils/common.js",
         "content.js"
       ],
       "run_at": "document_idle",

@@ -192,13 +192,20 @@ chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
         sendResponse({ error: 'Max 10 concurrent recordings reached' });
         return;
       }
-      activeRecordings.add(msg.tabId);
-      try { await chrome.tabs.sendMessage(msg.tabId, { kind: 'recorder-start', options: msg.options || {} }); } catch {}
-      try { chrome.runtime.sendMessage({ kind: 'recording-status', active: Array.from(activeRecordings) }); } catch {}
-      sendResponse();
+      await ensureOffscreenRecorder();
+      const key = String(msg.tabId);
+      chrome.runtime.sendMessage({ kind: 'offscreen-rec-start', key, mode: (msg.options && msg.options.mode) || 'tab', tabId: msg.tabId, mimeType: (msg.options && msg.options.mimeType) || 'video/webm;codecs=vp9', maxMs: (msg.options && msg.options.maxMs) || 30*60*1000 }, (resp) => {
+        if (chrome.runtime.lastError) { sendResponse({ error: chrome.runtime.lastError.message }); return; }
+        if (resp && resp.error) { sendResponse(resp); return; }
+        activeRecordings.add(msg.tabId);
+        try { chrome.runtime.sendMessage({ kind: 'recording-status', active: Array.from(activeRecordings) }); } catch {}
+        sendResponse({ ok: true });
+      });
     });
   } else if (msg.kind === 'record-stop') {
-    try { await chrome.tabs.sendMessage(msg.tabId, { kind: 'recorder-stop' }); } catch {}
+    await ensureOffscreenRecorder();
+    const key = String(msg.tabId);
+    chrome.runtime.sendMessage({ kind: 'offscreen-rec-stop', key }, () => {});
     activeRecordings.delete(msg.tabId);
     try { chrome.runtime.sendMessage({ kind: 'recording-status', active: Array.from(activeRecordings) }); } catch {}
     sendResponse();
@@ -254,4 +261,19 @@ try {
   );
 } catch (e) {
   console.warn('webRequest listeners not available:', e);
+}
+
+// Offscreen recorder management
+async function ensureOffscreenRecorder() {
+  try {
+    if (chrome.offscreen && !(await chrome.offscreen.hasDocument())) {
+      await chrome.offscreen.createDocument({
+        url: 'offscreen/recorder.html',
+        reasons: ['BLOBS'],
+        justification: 'Run MediaRecorder in offscreen context for tab/window/screen capture'
+      });
+    }
+  } catch (e) {
+    console.warn('Offscreen recorder not available:', e);
+  }
 }
