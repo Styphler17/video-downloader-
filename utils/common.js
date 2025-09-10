@@ -1,5 +1,6 @@
 export function isVideoLikeUrl(url) {
-  return /\.(mp4|webm|m4v|mov|ts)(\?|#|$)/i.test(url);
+  // Only direct, self-contained files. Exclude .ts to avoid HLS segments.
+  return /\.(mp4|webm|m4v|mov)(\?|#|$)/i.test(url);
 }
 
 export function isHls(url, ct = "") {

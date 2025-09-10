@@ -42,6 +42,7 @@ async function render() {
     });
     const tipEl = document.getElementById("tip");
     for (const item of res.items || []) {
+      if (item.type === 'mse') continue;
       const li = tpl.content.firstElementChild.cloneNode(true);
       li.querySelector(".type").textContent = item.type;
       li.querySelector(".name").textContent = item.type === 'mse' ? 'MSE stream detected (use Record Tab)' : filenameFromUrl(item.url);

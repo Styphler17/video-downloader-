@@ -20,6 +20,8 @@ async function fetchText(url) {
 
 async function hlsToMp4(masterUrl, { quality = 'best', filename } = {}) {
   const text = await fetchText(masterUrl);
+  let playlistUrl = masterUrl;
+  let pl = text;
   const variants = [];
   for (const line of text.split(/\r?\n/)) {
     if (!line.startsWith('#EXT-X-STREAM-INF')) continue;
@@ -28,9 +30,11 @@ async function hlsToMp4(masterUrl, { quality = 'best', filename } = {}) {
     const attrs = Object.fromEntries(m[1].split(',').map(kv => kv.split('=')).map(([k,v]) => [k, String(v).replace(/\"/g,'')]));
     variants.push({ bandwidth: +attrs.BANDWIDTH || 0, uri: resolveUrl(masterUrl, m[2].trim()) });
   }
-  variants.sort((a,b)=>b.bandwidth-a.bandwidth);
-  const playlistUrl = (quality === 'best') ? variants[0].uri : variants.at(-1).uri;
-  const pl = await fetchText(playlistUrl);
+  if (variants.length > 0) {
+    variants.sort((a,b)=>b.bandwidth-a.bandwidth);
+    playlistUrl = (quality === 'best') ? variants[0].uri : variants.at(-1).uri;
+    pl = await fetchText(playlistUrl);
+  }
   const segs = [];
   for (const line of pl.split(/\r?\n/)) {
     if (!line || line.startsWith('#')) continue;

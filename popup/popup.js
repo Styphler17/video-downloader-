@@ -48,6 +48,10 @@ async function render() {
     }
   }
   for (const item of items) {
+    if (item.type === 'mse') {
+      // Keep for tip, but do not render as a list entry
+      continue;
+    }
     const li = tpl.content.firstElementChild.cloneNode(true);
     li.querySelector(".type").textContent = item.type;
     li.querySelector(".name").textContent = item.type === 'mse' ? 'MSE stream detected (use Record Tab)' : filenameFromUrl(item.url);

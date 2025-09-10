@@ -201,13 +201,13 @@ try {
   // Based on response headers (content-type) and URL patterns
   chrome.webRequest.onHeadersReceived.addListener(
     (details) => {
-      const { tabId, url, responseHeaders } = details;
+      const { tabId, url, responseHeaders, type: reqType } = details;
       const ct = (responseHeaders || [])
         .find((h) => h.name && h.name.toLowerCase() === 'content-type')?.value || '';
       let type = null;
       if (isHls(url, ct)) type = 'hls';
       else if (isDash(url, ct)) type = 'dash';
-      else if (isVideoLikeUrl(url) || /^video\//i.test(ct)) type = 'file';
+      else if ((isVideoLikeUrl(url) || /^video\//i.test(ct)) && reqType === 'media' && !/video\/mp2t/i.test(ct)) type = 'file';
       if (!type) return;
       upsertMediaItem(tabId, { id: `net:${url}`, url, type, contentType: ct });
     },
@@ -218,11 +218,11 @@ try {
   // Fallback purely on URL patterns (some servers hide content-type via CORS)
   chrome.webRequest.onBeforeRequest.addListener(
     (details) => {
-      const { tabId, url } = details;
+      const { tabId, url, type: reqType } = details;
       let type = null;
       if (isHls(url)) type = 'hls';
       else if (isDash(url)) type = 'dash';
-      else if (isVideoLikeUrl(url)) type = 'file';
+      else if (isVideoLikeUrl(url) && reqType === 'media') type = 'file';
       if (!type) return;
       upsertMediaItem(tabId, { id: `req:${url}`, url, type, contentType: '' });
     },
