@@ -1,0 +1,52 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="popup.css">
+    <title>Video Downloader</title>
+</head>
+
+<body>
+    <header>
+        <h1>Videos</h1>
+        <button id="themeToggle" title="Toggle theme">☼</button>
+    </header>
+
+
+    <section id="controls">
+        <button id="refresh">Refresh</button>
+        <button id="record">Record Tab</button>
+        <button id="screenshot">Screenshot</button>
+        <button id="fullPageBtn">Full Page List</button>
+    </section>
+
+
+    <ul id="list"></ul>
+
+
+    <template id="item-tpl">
+        <li class="item">
+            <img class="thumbnail" src="" alt="Thumbnail">
+            <div class="meta">
+                <span class="type"></span>
+                <span class="name"></span>
+            </div>
+            <div class="actions">
+                <button class="dl">Download</button>
+                <select class="mode">
+                    <option value="auto">Auto</option>
+                    <option value="direct">Direct</option>
+                    <option value="hls">HLS→MP4</option>
+                    <option value="dash">DASH→MP4</option>
+                </select>
+            </div>
+        </li>
+    </template>
+
+
+    <script type="module" src="popup.js"></script>
+</body>
+
+</html>

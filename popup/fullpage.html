@@ -1,0 +1,58 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="popup.css" />
+    <title>Video Downloader - Full List</title>
+</head>
+
+<body>
+    <header>
+        <h1>Videos & Recordings</h1>
+        <button id="themeToggle" title="Toggle theme">☼</button>
+    </header>
+
+    <section id="tabs">
+        <button id="videosTab" class="active">Videos</button>
+        <button id="recordingsTab">Recordings</button>
+    </section>
+
+    <ul id="list"></ul>
+
+    <template id="item-tpl">
+        <li class="item">
+            <img class="thumbnail" src="" alt="Thumbnail" />
+            <div class="meta">
+                <span class="type"></span>
+                <span class="name"></span>
+            </div>
+            <div class="actions">
+                <button class="dl">Download</button>
+                <select class="mode">
+                    <option value="auto">Auto</option>
+                    <option value="direct">Direct</option>
+                    <option value="hls">HLS→MP4</option>
+                    <option value="dash">DASH→MP4</option>
+                </select>
+            </div>
+        </li>
+    </template>
+
+    <template id="recording-tpl">
+        <li class="item recording">
+            <div class="meta">
+                <span class="name"></span>
+                <span class="timestamp"></span>
+            </div>
+            <div class="actions">
+                <button class="dl">Download</button>
+            </div>
+        </li>
+    </template>
+
+    <script type="module" src="fullpage.js"></script>
+</body>
+
+</html>
