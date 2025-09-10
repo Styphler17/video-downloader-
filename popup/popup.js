@@ -101,12 +101,14 @@ async function render() {
             filename: filenameFromUrl(item.url),
           });
         } else if (mode === "hls") {
-          await chrome.runtime.sendMessage({
-            kind: "download-hls",
-            url: item.url,
-            filename:
-              filenameFromUrl(item.url).replace(/\.(m3u8|ts)$/i, "") + ".mp4",
-          });
+        const st = await chrome.storage.sync.get(['hlsQuality']);
+        await chrome.runtime.sendMessage({
+          kind: "download-hls",
+          url: item.url,
+          options: { quality: st.hlsQuality || 'best' },
+          filename:
+            filenameFromUrl(item.url).replace(/\.(m3u8|ts)$/i, "") + ".mp4",
+        });
         } else if (mode === "dash") {
           await chrome.runtime.sendMessage({
             kind: "download-dash",

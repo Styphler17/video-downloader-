@@ -14,11 +14,13 @@ function resolveUrl(base, rel) {
 }
 
 async function fetchText(url) {
-  const r = await fetch(url);
+  const r = await fetch(url, { credentials: 'include', cache: 'no-cache' });
   return r.text();
 }
 
-async function hlsToMp4(masterUrl, { quality = 'best', filename } = {}) {
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function hlsToMp4(masterUrl, { quality = 'best', filename, maxSeconds = 7200, pollIntervalMs = 2000 } = {}) {
   const text = await fetchText(masterUrl);
   let playlistUrl = masterUrl;
   let pl = text;
@@ -35,18 +37,50 @@ async function hlsToMp4(masterUrl, { quality = 'best', filename } = {}) {
     playlistUrl = (quality === 'best') ? variants[0].uri : variants.at(-1).uri;
     pl = await fetchText(playlistUrl);
   }
+
+  // Collect segments; if playlist is live (no ENDLIST), poll until ENDLIST or maxSeconds
   const segs = [];
-  for (const line of pl.split(/\r?\n/)) {
-    if (!line || line.startsWith('#')) continue;
-    segs.push(resolveUrl(playlistUrl, line.trim()));
+  const seen = new Set();
+  let totalDur = 0;
+  let end = false;
+  let targetDur = 6;
+  const parseOnce = (text) => {
+    let lastDur = 0;
+    for (const raw of text.split(/\r?\n/)) {
+      const line = raw.trim();
+      if (line.startsWith('#EXT-X-TARGETDURATION:')) {
+        const v = +line.split(':')[1]; if (!Number.isNaN(v)) targetDur = v;
+      } else if (line.startsWith('#EXTINF:')) {
+        const v = +line.split(':')[1]; if (!Number.isNaN(v)) lastDur = v; else lastDur = 0;
+      } else if (line && !line.startsWith('#')) {
+        const uri = resolveUrl(playlistUrl, line);
+        if (!seen.has(uri)) {
+          seen.add(uri);
+          segs.push({ uri, dur: lastDur || targetDur });
+          totalDur += (lastDur || targetDur);
+        }
+        lastDur = 0;
+      } else if (line.startsWith('#EXT-X-ENDLIST')) {
+        end = true;
+      }
+    }
+  };
+  parseOnce(pl);
+  const started = Date.now();
+  while (!end && (totalDur < maxSeconds) && (Date.now() - started < maxSeconds * 1000 * 1.2)) {
+    await sleep(pollIntervalMs);
+    try { pl = await fetchText(playlistUrl); } catch { break; }
+    parseOnce(pl);
   }
+  
+  const segUrls = segs.map(s => s.uri);
   const listName = 'list.txt';
   const entries = [];
-  for (let i=0;i<segs.length;i++) entries.push(`file '${i}.ts'`);
+  for (let i=0;i<segUrls.length;i++) entries.push(`file '${i}.ts'`);
   const ffmpeg = await loadFFmpeg();
   ffmpeg.FS('writeFile', listName, new TextEncoder().encode(entries.join('\n')));
   for (let i=0;i<segs.length;i++) {
-    const r = await fetch(segs[i], { credentials: 'include' });
+    const r = await fetch(segUrls[i], { credentials: 'include', cache: 'no-cache' });
     const buf = new Uint8Array(await r.arrayBuffer());
     ffmpeg.FS('writeFile', `${i}.ts`, buf);
   }
