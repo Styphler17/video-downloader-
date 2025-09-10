@@ -16,6 +16,7 @@ function collectVideoSources() {
     if (!v.__videoListenerAdded) {
       v.addEventListener('play', collectVideoSources);
       v.addEventListener('loadstart', collectVideoSources);
+      v.addEventListener('mouseenter', collectVideoSources, { passive: true });
       v.__videoListenerAdded = true;
     }
   });
@@ -44,6 +45,19 @@ chrome.runtime.onMessage.addListener((msg) => {
     startRecorder(msg.options || {});
   }
 });
+
+// Trigger a quick rescan when hovering over videos (for hover-plays)
+let __hoverScanTimer = null;
+document.addEventListener('mouseover', (e) => {
+  try {
+    const el = e.target;
+    if (!el) return;
+    const v = el.tagName === 'VIDEO' ? el : (el.closest ? el.closest('video') : null);
+    if (!v) return;
+    if (__hoverScanTimer) return;
+    __hoverScanTimer = setTimeout(() => { __hoverScanTimer = null; collectVideoSources(); }, 200);
+  } catch {}
+}, true);
 
 // Listen for page-level MSE hook signals and forward to background
 window.addEventListener('message', (e) => {
