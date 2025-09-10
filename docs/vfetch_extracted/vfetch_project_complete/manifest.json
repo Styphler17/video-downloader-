@@ -1,0 +1,74 @@
+{
+  "manifest_version": 3,
+  "name": "AnyVideo",
+  "version": "3.0",
+  "description": "Advanced video detection and download extension with HLS support",
+  "permissions": [
+    "tabs",
+    "storage",
+    "webRequest",
+    "declarativeNetRequest",
+    "offscreen",
+    "downloads"
+  ],
+  "host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
+  "background": {
+    "service_worker": "js/background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*/*"],
+      "exclude_globs": ["*://fetchv.net/*"],
+      "js": ["js/injection.js"],
+      "run_at": "document_start",
+      "all_frames": true
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["js/hook.js", "img/recording.svg"],
+      "matches": ["*://*/*"]
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "AnyVideo",
+    "default_icon": {
+      "16": "img/icon16.png",
+      "48": "img/icon48.png",
+      "128": "img/icon128.png"
+    }
+  },
+  "commands": {
+    "start-stop-recording": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+R",
+        "mac": "Command+Shift+R"
+      },
+      "description": "Start or stop recording"
+    },
+    "stop-all-recordings": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+S",
+        "mac": "Command+Shift+S"
+      },
+      "description": "Stop all recordings"
+    },
+    "pause-resume-recording": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+P",
+        "mac": "Command+Shift+P"
+      },
+      "description": "Pause or resume recording"
+    }
+  },
+  "icons": {
+    "16": "img/icon16.png",
+    "48": "img/icon48.png",
+    "128": "img/icon128.png"
+  },
+  "offline_enabled": true
+}

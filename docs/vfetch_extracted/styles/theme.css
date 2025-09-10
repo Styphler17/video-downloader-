@@ -1,0 +1,19 @@
+:root {
+  --primary-color: #e5ff00;
+  --bg-color: #f0f0f0;
+  --font-family: 'Inter', sans-serif;
+  --text-dark: #222;
+  --text-light: #fff;
+  --border-radius: 8px;
+}
+
+body {
+  font-family: var(--font-family);
+  background-color: var(--bg-color);
+  color: var(--text-dark);
+}
+
+button {
+  border-radius: var(--border-radius);
+  font-weight: 500;
+}

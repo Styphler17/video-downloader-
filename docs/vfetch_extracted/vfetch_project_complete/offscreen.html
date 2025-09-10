@@ -1,0 +1,3046 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AnyVideo - Offscreen Recording</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <style>
+    body {
+      background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+      min-height: 100vh;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      overflow-x: hidden;
+    }
+    
+    .recording-container {
+      background: rgba(255, 255, 255, 0.95);
+      min-height: 100vh;
+      width: 100%;
+      margin: 0;
+      padding: 2rem;
+      box-sizing: border-box;
+    }
+    
+    .three-column-layout {
+      display: grid;
+      grid-template-columns: 350px 1fr 350px;
+      gap: 2rem;
+      align-items: start;
+      max-width: 100%;
+      margin: 0 auto;
+    }
+    
+    /* Mobile responsive design */
+    @media (max-width: 1200px) {
+      .three-column-layout {
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+      }
+      
+      .recordings-panel {
+        grid-column: 1 / -1;
+        order: 3;
+      }
+    }
+    
+    @media (max-width: 768px) {
+      .recording-container {
+        padding: 1rem;
+        margin: 0;
+      }
+      
+      .three-column-layout {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+      }
+      
+      .control-panel,
+      .preview-panel,
+      .recordings-panel {
+        padding: 1rem;
+      }
+      
+      .preview-video {
+        height: 240px;
+      }
+      
+      .recording-controls .btn {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.8rem;
+      }
+      
+      .recording-item {
+        padding: 0.75rem;
+      }
+      
+      .recording-title {
+        font-size: 0.9rem;
+      }
+      
+      .recording-meta {
+        font-size: 0.75rem;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      .recording-container {
+        padding: 0.5rem;
+        margin: 0;
+      }
+      
+      .preview-video {
+        height: 200px;
+      }
+      
+      .recording-controls {
+        flex-direction: column;
+        gap: 0.25rem;
+      }
+      
+      .recording-controls .btn {
+        width: 100%;
+        padding: 0.5rem;
+      }
+    }
+    
+    .control-panel {
+      background: #f8f9fa;
+      border-radius: 12px;
+      padding: 1.5rem;
+      border: 1px solid #dee2e6;
+    }
+    
+    .preview-panel {
+      background: #f8f9fa;
+      border-radius: 12px;
+      padding: 1.5rem;
+      border: 1px solid #dee2e6;
+    }
+    
+    .recordings-panel {
+      background: #f8f9fa;
+      border-radius: 12px;
+      padding: 1.5rem;
+      border: 1px solid #dee2e6;
+      max-height: 70vh;
+      overflow-y: auto;
+    }
+    
+    .preview-section {
+      margin: 2rem 0;
+      text-align: center;
+    }
+    
+    .preview-container {
+      background: #000;
+      border-radius: 12px;
+      overflow: hidden;
+      margin: 1rem 0;
+      position: relative;
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+      width: 100%;
+    }
+    
+    .preview-video {
+      width: 100%;
+      height: 480px; /* Larger for full page */
+      display: block;
+      background: #000;
+      object-fit: cover;
+    }
+    
+    .preview-placeholder {
+      width: 100%;
+      height: 480px; /* Larger for full page */
+      background: linear-gradient(135deg, #2d2d2d 0%, #1a1a1a 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 1.2rem;
+    }
+    
+    .recording-overlay {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: rgba(220, 53, 69, 0.9);
+      color: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      font-weight: bold;
+      display: none;
+    }
+    
+    .recording-item {
+      background: white;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .recording-item:hover {
+      border-color: #198754;
+      box-shadow: 0 2px 8px rgba(25, 135, 84, 0.2);
+    }
+    
+    .recording-item.active {
+      border-color: #198754;
+      background: #f8fff9;
+    }
+    
+    .recording-item.recording {
+      border-color: #dc3545;
+      background: #fff8f8;
+    }
+    
+    .recording-title {
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      color: #495057;
+    }
+    
+    .recording-meta {
+      font-size: 0.8rem;
+      color: #6c757d;
+      margin-bottom: 0.5rem;
+    }
+    
+    .recording-controls {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+    
+    .recording-controls .btn {
+      padding: 0.25rem 0.5rem;
+      font-size: 0.75rem;
+    }
+    
+    .recording-item {
+      background: white;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .recording-item:hover {
+      border-color: #198754;
+      box-shadow: 0 2px 8px rgba(25, 135, 84, 0.2);
+    }
+    
+    .recording-item.active {
+      border-color: #198754;
+      background: #f8fff9;
+      box-shadow: 0 0 0 2px rgba(25, 135, 84, 0.3);
+    }
+    
+    .recording-item.recording {
+      border-color: #dc3545;
+      background: #fff8f8;
+    }
+    
+    .recording-item.recording.active {
+      border-color: #198754;
+      background: #f8fff9;
+      box-shadow: 0 0 0 2px rgba(25, 135, 84, 0.3);
+    }
+    
+    .recording-item.recording.paused {
+      border-color: #ffc107;
+      background: #fffbf0;
+    }
+    
+    .recording-title {
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      color: #495057;
+      font-size: 0.9rem;
+      line-height: 1.2;
+    }
+    
+    .recording-meta {
+      font-size: 0.8rem;
+      color: #6c757d;
+      margin-bottom: 0.5rem;
+    }
+    
+    .recording-controls {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+    
+    .recording-controls .btn {
+      padding: 0.25rem 0.5rem;
+      font-size: 0.75rem;
+    }
+    
+    .recording-preview {
+      position: relative;
+      display: inline-block;
+      cursor: pointer;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    
+    .preview-thumbnail {
+      display: block;
+      border: 1px solid #dee2e6;
+      transition: all 0.2s ease;
+    }
+    
+    .recording-preview:hover .preview-thumbnail {
+      transform: scale(1.05);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+    
+    .preview-overlay {
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .recording-preview:hover .preview-overlay {
+      opacity: 1 !important;
+      background: rgba(0, 0, 0, 0.5);
+    }
+    
+    .recording-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 1.5rem 2rem;
+      border-radius: 15px;
+      margin-bottom: 2rem;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
+    
+    .header-title h2 {
+      color: white;
+      font-weight: 700;
+      margin: 0;
+    }
+    
+    .header-title p {
+      color: rgba(255, 255, 255, 0.8);
+      margin: 0;
+    }
+    
+    .recording-status {
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin-bottom: 0;
+      color: white;
+    }
+    
+    /* Back to Top Button */
+    .back-to-top {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      width: 50px;
+      height: 50px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      font-size: 1.2rem;
+      cursor: pointer;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s ease;
+      z-index: 1000;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .back-to-top:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+      background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+    }
+    
+    .back-to-top.show {
+      opacity: 1;
+      visibility: visible;
+    }
+    
+    .back-to-top:active {
+      transform: translateY(-1px);
+    }
+    
+    .recording-indicator {
+      width: 20px;
+      height: 20px;
+      background: #198754;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 10px;
+      animation: pulse 1.5s infinite;
+    }
+    
+    @keyframes pulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.5; }
+      100% { opacity: 1; }
+    }
+    
+    @keyframes fadeInOut {
+      0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+      20% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+      80% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+      100% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+    }
+    
+    .recording-controls {
+      margin: 2rem 0;
+    }
+    
+    @media (max-width: 768px) {
+      .recording-header {
+        padding: 1rem;
+        text-align: center;
+      }
+      
+      .recording-header .d-flex {
+        flex-direction: column;
+        gap: 1rem;
+      }
+      
+      .recording-status {
+        flex-direction: column;
+        gap: 0.5rem;
+        text-align: center;
+        padding: 0.75rem;
+      }
+      
+      .recording-controls {
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+      
+      .recording-controls .btn {
+        width: 100%;
+      }
+      
+      .recording-stats {
+        flex-direction: column;
+        gap: 1rem;
+      }
+      
+      .stat-item {
+        padding: 0.5rem;
+        background: white;
+        border-radius: 8px;
+        border: 1px solid #dee2e6;
+      }
+    }
+    
+    .btn-record {
+      background: linear-gradient(45deg, #198754, #157347);
+      border: none;
+      color: white;
+      padding: 12px 30px;
+      border-radius: 25px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+    
+    .btn-record:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(25, 135, 84, 0.3);
+    }
+    
+    .btn-record:disabled {
+      background: #6c757d;
+      transform: none;
+      box-shadow: none;
+    }
+    
+    .btn-secondary {
+      background: linear-gradient(45deg, #6c757d, #5a6268);
+      border: none;
+      color: white;
+      padding: 12px 20px;
+      border-radius: 25px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+    
+    /* Hotkeys styling */
+    .hotkeys-help {
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      padding: 1rem;
+    }
+    
+    .hotkey-list {
+      font-size: 0.8rem;
+    }
+    
+    .hotkey-item {
+      color: #6c757d;
+    }
+    
+    .hotkey-item kbd {
+      font-size: 0.7rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid #ced4da;
+      background: #fff;
+      color: #495057;
+      font-family: 'Courier New', monospace;
+    }
+    
+    .hotkey-item:hover {
+      color: #495057;
+    }
+    
+    /* Quality presets styling */
+    .quality-settings {
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      padding: 1rem;
+    }
+    
+    .quality-presets {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem;
+    }
+    
+    .quality-preset {
+      background: white;
+      border: 2px solid #dee2e6;
+      border-radius: 6px;
+      padding: 0.75rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: center;
+    }
+    
+    .quality-preset:hover {
+      border-color: #adb5bd;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    .quality-preset.active {
+      border-color: #198754;
+      background: #f8fff9;
+      box-shadow: 0 0 0 2px rgba(25, 135, 84, 0.3);
+    }
+    
+    .quality-name {
+      font-weight: 600;
+      color: #495057;
+      margin-bottom: 0.25rem;
+    }
+    
+    .quality-details {
+      font-size: 0.75rem;
+      color: #6c757d;
+    }
+    
+    .quality-preset.active .quality-name {
+      color: #198754;
+    }
+    
+    .btn-secondary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(108, 117, 125, 0.3);
+    }
+    
+    .recording-info {
+      background: #f8f9fa;
+      border-radius: 10px;
+      padding: 1rem;
+      margin: 1rem 0;
+    }
+    
+    .recording-time {
+      font-size: 2rem;
+      font-weight: bold;
+      color: #198754;
+      font-family: 'Courier New', monospace;
+    }
+    
+    .recording-stats {
+      display: flex;
+      justify-content: space-around;
+      margin: 1rem 0;
+    }
+    
+    .stat-item {
+      text-align: center;
+    }
+    
+    .stat-value {
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: #495057;
+    }
+    
+    .stat-label {
+      font-size: 0.9rem;
+      color: #6c757d;
+    }
+    
+    .download-section {
+      margin-top: 2rem;
+      padding-top: 2rem;
+      border-top: 1px solid #dee2e6;
+    }
+    
+    .download-list {
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    
+    .download-item {
+      background: white;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      padding: 0.75rem;
+      margin: 0.5rem 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .download-item:hover {
+      background: #f8f9fa;
+    }
+    
+    .download-info {
+      flex: 1;
+      text-align: left;
+    }
+    
+    .download-name {
+      font-weight: 600;
+      color: #495057;
+    }
+    
+    .download-size {
+      font-size: 0.8rem;
+      color: #6c757d;
+    }
+    
+    .btn-download {
+      background: #28a745;
+      border: none;
+      color: white;
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 0.8rem;
+    }
+    
+    .btn-download:hover {
+      background: #218838;
+    }
+    
+    .error-message {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+      border-radius: 8px;
+      padding: 1rem;
+      margin: 1rem 0;
+    }
+    
+    .success-message {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+      border-radius: 8px;
+      padding: 1rem;
+      margin: 1rem 0;
+    }
+    
+    /* Recording Timer Styles */
+    .recording-timer {
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      padding: 1rem;
+    }
+    
+    .timer-display {
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+    
+    .timer-main {
+      font-size: 2rem;
+      font-weight: bold;
+      font-family: 'Courier New', monospace;
+      color: #dc3545;
+      text-shadow: 0 0 10px rgba(220, 53, 69, 0.3);
+      margin-bottom: 0.5rem;
+    }
+    
+    .timer-main.countdown {
+      color: #ffc107;
+      text-shadow: 0 0 10px rgba(255, 193, 7, 0.3);
+    }
+    
+    .timer-main.paused {
+      color: #6c757d;
+      text-shadow: none;
+    }
+    
+    .timer-subtitle {
+      font-size: 0.9rem;
+      color: #6c757d;
+      font-style: italic;
+    }
+    
+    .timer-controls {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: center;
+    }
+    
+    .countdown-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    
+    .countdown-modal-content {
+      background: white;
+      border-radius: 12px;
+      padding: 2rem;
+      max-width: 400px;
+      width: 90%;
+      text-align: center;
+    }
+    
+    .countdown-inputs {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      margin: 1.5rem 0;
+    }
+    
+    .countdown-input {
+      text-align: center;
+      width: 80px;
+      padding: 0.5rem;
+      border: 2px solid #dee2e6;
+      border-radius: 6px;
+      font-size: 1.2rem;
+      font-weight: bold;
+    }
+    
+    .countdown-input:focus {
+      border-color: #007bff;
+      outline: none;
+    }
+    
+    .countdown-label {
+      font-size: 0.9rem;
+      color: #6c757d;
+      margin-top: 0.5rem;
+    }
+    
+    /* Video Editing Styles */
+    .video-editing {
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      padding: 1rem;
+    }
+    
+    .editing-tools {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    
+    .editing-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    
+    .editing-modal-content {
+      background: white;
+      border-radius: 12px;
+      padding: 2rem;
+      max-width: 600px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    
+    .editing-preview {
+      border: 2px solid #dee2e6;
+      border-radius: 8px;
+      margin: 1rem 0;
+      position: relative;
+      background: #000;
+      overflow: hidden;
+    }
+    
+    .editing-video {
+      width: 100%;
+      max-height: 300px;
+      object-fit: contain;
+    }
+    
+    .trim-controls {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+    
+    .trim-slider {
+      flex: 1;
+      height: 6px;
+      border-radius: 3px;
+      background: #dee2e6;
+      outline: none;
+      -webkit-appearance: none;
+    }
+    
+    .trim-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #007bff;
+      cursor: pointer;
+    }
+    
+    .trim-slider::-moz-range-thumb {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #007bff;
+      cursor: pointer;
+      border: none;
+    }
+    
+
+    
+    .text-overlay {
+      position: absolute;
+      color: white;
+      font-weight: bold;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+      cursor: move;
+      -webkit-user-select: none;
+      user-select: none;
+      padding: 4px 8px;
+      border: 2px dashed transparent;
+    }
+    
+    .text-overlay:hover {
+      border-color: #007bff;
+    }
+    
+    .text-overlay.selected {
+      border-color: #007bff;
+      background: rgba(0, 123, 255, 0.1);
+    }
+    
+    .watermark-overlay {
+      position: absolute;
+      cursor: move;
+      -webkit-user-select: none;
+      user-select: none;
+      border: 2px dashed transparent;
+    }
+    
+    .watermark-overlay:hover {
+      border-color: #007bff;
+    }
+    
+    .watermark-overlay.selected {
+      border-color: #007bff;
+      background: rgba(0, 123, 255, 0.1);
+    }
+    
+    .editing-controls {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+    
+    .editing-controls .btn {
+      flex: 1;
+    }
+    
+    /* Export Options Styles */
+    .export-options {
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      padding: 1rem;
+    }
+    
+    .export-tools {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    
+    .export-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    
+    .export-modal-content {
+      background: white;
+      border-radius: 12px;
+      padding: 2rem;
+      max-width: 700px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    
+    .format-options {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+    
+    .format-option {
+      border: 2px solid #dee2e6;
+      border-radius: 8px;
+      padding: 1rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .format-option:hover {
+      border-color: #007bff;
+      background: #f8f9fa;
+    }
+    
+    .format-option.selected {
+      border-color: #007bff;
+      background: #e3f2fd;
+    }
+    
+    .format-icon {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+    }
+    
+    .format-name {
+      font-weight: bold;
+      margin-bottom: 0.25rem;
+    }
+    
+    .format-details {
+      font-size: 0.8rem;
+      color: #6c757d;
+    }
+    
+    .compression-slider {
+      width: 100%;
+      margin: 1rem 0;
+    }
+    
+    .compression-info {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 0.5rem 0;
+    }
+    
+    .file-size-preview {
+      background: #e9ecef;
+      border-radius: 6px;
+      padding: 1rem;
+      margin: 1rem 0;
+      text-align: center;
+    }
+    
+    .batch-list {
+      max-height: 200px;
+      overflow-y: auto;
+      border: 1px solid #dee2e6;
+      border-radius: 6px;
+      padding: 0.5rem;
+    }
+    
+    .batch-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5rem;
+      border-bottom: 1px solid #dee2e6;
+    }
+    
+    .batch-item:last-child {
+      border-bottom: none;
+    }
+    
+    .batch-checkbox {
+      margin-right: 0.5rem;
+    }
+    
+    .progress-bar {
+      height: 8px;
+      background: #e9ecef;
+      border-radius: 4px;
+      overflow: hidden;
+      margin: 1rem 0;
+    }
+    
+    .progress-fill {
+      height: 100%;
+      background: #007bff;
+      width: 0%;
+      transition: width 0.3s;
+    }
+    
+    /* Notification Styles */
+    .notification-settings {
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      padding: 1rem;
+    }
+    
+    .notification-tools {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    
+    .notification-status {
+      border-top: 1px solid #dee2e6;
+      padding-top: 0.5rem;
+    }
+    
+    .notification-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    
+    .notification-modal-content {
+      background: white;
+      border-radius: 12px;
+      padding: 2rem;
+      max-width: 500px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    
+    .notification-preview {
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      padding: 1rem;
+      margin: 1rem 0;
+      text-align: center;
+    }
+    
+    .notification-sound-preview {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+    
+    .sound-option {
+      border: 2px solid #dee2e6;
+      border-radius: 8px;
+      padding: 1rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      flex: 1;
+    }
+    
+    .sound-option:hover {
+      border-color: #007bff;
+      background: #f8f9fa;
+    }
+    
+    .sound-option.selected {
+      border-color: #007bff;
+      background: #e3f2fd;
+    }
+    
+    .sound-icon {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+    
+    .visual-alert {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #28a745;
+      color: white;
+      padding: 1rem;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      z-index: 9999;
+      transform: translateX(100%);
+      transition: transform 0.3s ease;
+      max-width: 300px;
+    }
+    
+    .visual-alert.show {
+      transform: translateX(0);
+    }
+    
+    .visual-alert.success {
+      background: #28a745;
+    }
+    
+    .visual-alert.warning {
+      background: #ffc107;
+      color: #212529;
+    }
+    
+    .visual-alert.error {
+      background: #dc3545;
+    }
+    
+    .visual-alert.info {
+      background: #17a2b8;
+    }
+    
+    .visual-alert-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+    
+    .visual-alert-title {
+      font-weight: bold;
+      font-size: 1.1rem;
+    }
+    
+    .visual-alert-close {
+      background: none;
+      border: none;
+      color: inherit;
+      font-size: 1.2rem;
+      cursor: pointer;
+      opacity: 0.7;
+    }
+    
+    .visual-alert-close:hover {
+      opacity: 1;
+    }
+    
+    .visual-alert-message {
+      font-size: 0.9rem;
+      opacity: 0.9;
+    }
+    
+    .recording-indicator {
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.5; }
+      100% { opacity: 1; }
+    }
+    
+    .recording-indicator.recording {
+      animation: recording-pulse 1s infinite;
+    }
+    
+    @keyframes recording-pulse {
+      0% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.7; transform: scale(1.1); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+    
+    /* Performance Styles */
+    .performance-settings {
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      padding: 1rem;
+    }
+    
+    .performance-tools {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    
+    .performance-status {
+      border-top: 1px solid #dee2e6;
+      padding-top: 0.5rem;
+    }
+    
+    .performance-indicator {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+      font-size: 0.85rem;
+    }
+    
+    .performance-label {
+      color: #6c757d;
+      font-weight: 500;
+    }
+    
+    .performance-value {
+      font-weight: bold;
+      color: #495057;
+    }
+    
+    .performance-value.warning {
+      color: #ffc107;
+    }
+    
+    .performance-value.danger {
+      color: #dc3545;
+    }
+    
+    .performance-value.success {
+      color: #28a745;
+    }
+    
+    .performance-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    
+    .performance-modal-content {
+      background: white;
+      border-radius: 12px;
+      padding: 2rem;
+      max-width: 800px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    
+    .performance-chart {
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      padding: 1rem;
+      margin: 1rem 0;
+      height: 200px;
+      position: relative;
+    }
+    
+    .chart-line {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+    
+    .chart-point {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      background: #007bff;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+    }
+    
+    .performance-metrics {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+    
+    .metric-card {
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      padding: 1rem;
+      text-align: center;
+    }
+    
+    .metric-value {
+      font-size: 1.5rem;
+      font-weight: bold;
+      margin-bottom: 0.5rem;
+    }
+    
+    .metric-label {
+      font-size: 0.9rem;
+      color: #6c757d;
+    }
+    
+    .compression-settings {
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      padding: 1rem;
+      margin: 1rem 0;
+    }
+    
+    .compression-option {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid #dee2e6;
+    }
+    
+    .compression-option:last-child {
+      border-bottom: none;
+    }
+    
+    .compression-info {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+    
+    .compression-name {
+      font-weight: 500;
+    }
+    
+    .compression-description {
+      font-size: 0.8rem;
+      color: #6c757d;
+    }
+    
+    .optimization-status {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin: 1rem 0;
+      padding: 0.5rem;
+      border-radius: 6px;
+      background: #e9ecef;
+    }
+    
+    .optimization-icon {
+      font-size: 1.2rem;
+    }
+    
+    .optimization-text {
+      flex: 1;
+    }
+    
+    .optimization-status.success {
+      background: #d4edda;
+      color: #155724;
+    }
+    
+    .optimization-status.warning {
+      background: #fff3cd;
+      color: #856404;
+    }
+    
+    .optimization-status.error {
+      background: #f8d7da;
+      color: #721c24;
+    }
+    
+    .background-worker-status {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin: 0.5rem 0;
+    }
+    
+    .worker-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #6c757d;
+    }
+    
+    .worker-indicator.active {
+      background: #28a745;
+      animation: pulse 2s infinite;
+    }
+    
+    .worker-indicator.inactive {
+      background: #dc3545;
+    }
+    
+    /* Privacy & Security Styles */
+    .privacy-settings {
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      padding: 1rem;
+    }
+    
+    .privacy-tools {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    
+    .privacy-status {
+      border-top: 1px solid #dee2e6;
+      padding-top: 0.5rem;
+    }
+    
+    .privacy-indicator {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+      font-size: 0.85rem;
+    }
+    
+    .privacy-label {
+      color: #6c757d;
+      font-weight: 500;
+    }
+    
+    .privacy-value {
+      font-weight: bold;
+      color: #495057;
+    }
+    
+    .privacy-value.secure {
+      color: #28a745;
+    }
+    
+    .privacy-value.warning {
+      color: #ffc107;
+    }
+    
+    .privacy-value.danger {
+      color: #dc3545;
+    }
+    
+    .privacy-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    
+    .privacy-modal-content {
+      background: white;
+      border-radius: 12px;
+      padding: 2rem;
+      max-width: 600px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    
+    .encryption-status {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin: 1rem 0;
+      padding: 0.5rem;
+      border-radius: 6px;
+      background: #e9ecef;
+    }
+    
+    .encryption-status.secure {
+      background: #d4edda;
+      color: #155724;
+    }
+    
+    .encryption-status.warning {
+      background: #fff3cd;
+      color: #856404;
+    }
+    
+    .encryption-status.danger {
+      background: #f8d7da;
+      color: #721c24;
+    }
+    
+    .privacy-level-selector {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+    
+    .privacy-level-option {
+      border: 2px solid #dee2e6;
+      border-radius: 8px;
+      padding: 1rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .privacy-level-option:hover {
+      border-color: #007bff;
+      background: #f8f9fa;
+    }
+    
+    .privacy-level-option.selected {
+      border-color: #007bff;
+      background: #e3f2fd;
+    }
+    
+    .privacy-level-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+    
+    .privacy-level-name {
+      font-weight: bold;
+      font-size: 1.1rem;
+    }
+    
+    .privacy-level-icon {
+      font-size: 1.2rem;
+    }
+    
+    .privacy-level-description {
+      font-size: 0.9rem;
+      color: #6c757d;
+      margin-bottom: 0.5rem;
+    }
+    
+    .privacy-level-features {
+      font-size: 0.8rem;
+      color: #495057;
+    }
+    
+    .encryption-key-input {
+      position: relative;
+    }
+    
+    .encryption-key-input input {
+      padding-right: 40px;
+    }
+    
+    .encryption-key-toggle {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #6c757d;
+    }
+    
+    .encryption-key-toggle:hover {
+      color: #495057;
+    }
+    
+    .secure-storage-info {
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      padding: 1rem;
+      margin: 1rem 0;
+    }
+    
+    .security-checklist {
+      list-style: none;
+      padding: 0;
+      margin: 1rem 0;
+    }
+    
+    .security-checklist li {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+      padding: 0.5rem;
+      border-radius: 4px;
+      background: #f8f9fa;
+    }
+    
+    .security-checklist li.secure {
+      background: #d4edda;
+      color: #155724;
+    }
+    
+    .security-checklist li.warning {
+      background: #fff3cd;
+      color: #856404;
+    }
+    
+    .security-checklist li.danger {
+      background: #f8d7da;
+      color: #721c24;
+    }
+    
+    .privacy-warning {
+      background: #fff3cd;
+      border: 1px solid #ffeaa7;
+      border-radius: 8px;
+      padding: 1rem;
+      margin: 1rem 0;
+      color: #856404;
+    }
+    
+    .privacy-warning h6 {
+      color: #856404;
+      margin-bottom: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="recording-container">
+    <!-- Header Section -->
+    <div class="recording-header mb-4">
+      <div class="d-flex justify-content-between align-items-center">
+        <div class="header-title">
+          <h2 class="mb-1">
+            <img src="img/recording.svg" alt="Recording Studio" style="width: 32px; height: 32px; margin-right: 8px; vertical-align: middle;">
+            AnyVideo Recording Studio
+          </h2>
+          <p class="text-muted mb-0">Professional Video Recording & Editing</p>
+        </div>
+        <div class="recording-status">
+          <span class="recording-indicator" id="status-indicator"></span>
+          <span id="status-text">Ready to Record</span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="three-column-layout">
+      <!-- Control Panel -->
+      <div class="control-panel">
+        <h5>Recording Controls</h5>
+        <div class="recording-controls flex-column gap-3 align-items-stretch">
+          <button class="btn btn-lg btn-success d-flex align-items-center justify-content-center gap-2 w-100" id="start-btn">
+            <img src="img/recording.svg" alt="Start Recording" style="width: 24px; height: 24px;">
+            <span>Start New Recording</span>
+          </button>
+          <button class="btn btn-lg btn-dark d-flex align-items-center justify-content-center gap-2 w-100" id="stop-all-btn">
+            <i class="bi bi-stop-fill fs-4"></i> <span>Stop All Recordings</span>
+          </button>
+        </div>
+        
+        <!-- Recording Timer -->
+        <div class="recording-timer mt-3" id="recording-timer" style="display: none;">
+          <h6 class="text-muted mb-2">
+            <i class="bi bi-clock"></i> Recording Timer
+          </h6>
+          <div class="timer-display">
+            <div class="timer-main" id="timer-main">00:00:00</div>
+            <div class="timer-subtitle" id="timer-subtitle">Recording in progress...</div>
+          </div>
+          <div class="timer-controls mt-2">
+            <button class="btn btn-sm btn-outline-secondary" id="countdown-btn">
+              <i class="bi bi-hourglass-split"></i> Set Countdown
+            </button>
+            <button class="btn btn-sm btn-outline-warning" id="pause-timer-btn" style="display: none;">
+              <i class="bi bi-pause"></i> Pause Timer
+            </button>
+          </div>
+        </div>
+        
+        <!-- Video Editing Tools -->
+        <div class="video-editing mt-3" id="video-editing" style="display: none;">
+          <h6 class="text-muted mb-2">
+            <i class="bi bi-scissors"></i> Video Editing
+          </h6>
+          <div class="editing-tools">
+            <button class="btn btn-sm btn-outline-primary w-100 mb-2" id="trim-video-btn">
+              <i class="bi bi-scissors"></i> Trim Video
+            </button>
+
+            <button class="btn btn-sm btn-outline-success w-100 mb-2" id="add-text-btn">
+              <i class="bi bi-type"></i> Add Text Overlay
+            </button>
+            <button class="btn btn-sm btn-outline-warning w-100 mb-2" id="add-watermark-btn">
+              <i class="bi bi-image"></i> Add Watermark
+            </button>
+            <button class="btn btn-sm btn-outline-danger w-100" id="reset-edits-btn">
+              <i class="bi bi-arrow-clockwise"></i> Reset All Edits
+            </button>
+          </div>
+        </div>
+        
+        <!-- Export Options -->
+        <div class="export-options mt-3" id="export-options" style="display: none;">
+          <h6 class="text-muted mb-2">
+            <i class="bi bi-download"></i> Export Options
+          </h6>
+          <div class="export-tools">
+            <button class="btn btn-sm btn-outline-primary w-100 mb-2" id="export-video-btn">
+              <i class="bi bi-film"></i> Export Video
+            </button>
+            <button class="btn btn-sm btn-outline-success w-100 mb-2" id="export-gif-btn">
+              <i class="bi bi-image"></i> Export as GIF
+            </button>
+            <button class="btn btn-sm btn-outline-info w-100 mb-2" id="export-audio-btn">
+              <i class="bi bi-music-note"></i> Extract Audio
+            </button>
+            <button class="btn btn-sm btn-outline-warning w-100 mb-2" id="batch-export-btn">
+              <i class="bi bi-collection"></i> Batch Export
+            </button>
+            <button class="btn btn-sm btn-outline-secondary w-100" id="export-settings-btn">
+              <i class="bi bi-gear"></i> Export Settings
+            </button>
+          </div>
+        </div>
+        
+        <!-- Notification Settings -->
+        <div class="notification-settings mt-3">
+          <h6 class="text-muted mb-2">
+            <i class="bi bi-bell"></i> Notifications
+          </h6>
+          <div class="notification-tools">
+            <button class="btn btn-sm btn-outline-primary w-100 mb-2" id="test-notification-btn">
+              <i class="bi bi-bell"></i> Test Notifications
+            </button>
+            <button class="btn btn-sm btn-outline-success w-100 mb-2" id="notification-settings-btn">
+              <i class="bi bi-gear"></i> Notification Settings
+            </button>
+            <div class="notification-status mt-2">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="desktop-notifications" checked>
+                <label class="form-check-label" for="desktop-notifications">
+                  Desktop Notifications
+                </label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="sound-alerts" checked>
+                <label class="form-check-label" for="sound-alerts">
+                  Sound Alerts
+                </label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="visual-alerts" checked>
+                <label class="form-check-label" for="visual-alerts">
+                  Visual Alerts
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Performance Settings -->
+        <div class="performance-settings mt-3">
+          <h6 class="text-muted mb-2">
+            <i class="bi bi-speedometer2"></i> Performance
+          </h6>
+          <div class="performance-tools">
+            <button class="btn btn-sm btn-outline-primary w-100 mb-2" id="performance-monitor-btn">
+              <i class="bi bi-graph-up"></i> Performance Monitor
+            </button>
+            <button class="btn btn-sm btn-outline-success w-100 mb-2" id="memory-cleanup-btn">
+              <i class="bi bi-trash"></i> Memory Cleanup
+            </button>
+            <button class="btn btn-sm btn-outline-warning w-100 mb-2" id="performance-settings-btn">
+              <i class="bi bi-gear"></i> Performance Settings
+            </button>
+            <div class="performance-status mt-2">
+              <div class="performance-indicator">
+                <div class="performance-label">Memory Usage</div>
+                <div class="performance-value" id="memory-usage">Calculating...</div>
+              </div>
+              <div class="performance-indicator">
+                <div class="performance-label">CPU Usage</div>
+                <div class="performance-value" id="cpu-usage">Calculating...</div>
+              </div>
+              <div class="performance-indicator">
+                <div class="performance-label">Storage Used</div>
+                <div class="performance-value" id="storage-used">Calculating...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Privacy & Security Settings -->
+        <div class="privacy-settings mt-3">
+          <h6 class="text-muted mb-2">
+            <i class="bi bi-shield-lock"></i> Privacy & Security
+          </h6>
+          <div class="privacy-tools">
+            <button class="btn btn-sm btn-outline-primary w-100 mb-2" id="privacy-settings-btn">
+              <i class="bi bi-gear"></i> Privacy Settings
+            </button>
+            <button class="btn btn-sm btn-outline-success w-100 mb-2" id="encrypt-recordings-btn">
+              <i class="bi bi-lock"></i> Encrypt Recordings
+            </button>
+            <button class="btn btn-sm btn-outline-warning w-100 mb-2" id="secure-storage-btn">
+              <i class="bi bi-safe"></i> Secure Storage
+            </button>
+            <div class="privacy-status mt-2">
+              <div class="privacy-indicator">
+                <div class="privacy-label">Encryption</div>
+                <div class="privacy-value" id="encryption-status">Disabled</div>
+              </div>
+              <div class="privacy-indicator">
+                <div class="privacy-label">Secure Storage</div>
+                <div class="privacy-value" id="storage-status">Standard</div>
+              </div>
+              <div class="privacy-indicator">
+                <div class="privacy-label">Privacy Level</div>
+                <div class="privacy-value" id="privacy-level">Basic</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Quality Settings -->
+        <div class="quality-settings mt-3">
+          <h6 class="text-muted mb-2">
+            <i class="bi bi-gear"></i> Recording Quality
+          </h6>
+          <div class="quality-presets">
+            <div class="quality-preset" data-quality="low">
+              <div class="quality-name">Low</div>
+              <div class="quality-details">720p • 24fps • 2Mbps</div>
+            </div>
+            <div class="quality-preset active" data-quality="medium">
+              <div class="quality-name">Medium</div>
+              <div class="quality-details">1080p • 30fps • 5Mbps</div>
+            </div>
+            <div class="quality-preset" data-quality="high">
+              <div class="quality-name">High</div>
+              <div class="quality-details">1440p • 30fps • 8Mbps</div>
+            </div>
+            <div class="quality-preset" data-quality="ultra">
+              <div class="quality-name">Ultra</div>
+              <div class="quality-details">4K • 60fps • 15Mbps</div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Keyboard Shortcuts Help -->
+        <div class="hotkeys-help mt-3">
+          <h6 class="text-muted mb-2">
+            <i class="bi bi-keyboard"></i> Keyboard Shortcuts
+          </h6>
+          <div class="hotkey-list small">
+            <div class="hotkey-item d-flex justify-content-between align-items-center mb-1">
+              <span>Start/Stop Recording</span>
+              <kbd class="bg-light">Ctrl+Shift+R</kbd>
+            </div>
+            <div class="hotkey-item d-flex justify-content-between align-items-center mb-1">
+              <span>Stop All Recordings</span>
+              <kbd class="bg-light">Ctrl+Shift+S</kbd>
+            </div>
+            <div class="hotkey-item d-flex justify-content-between align-items-center mb-1">
+              <span>Pause/Resume</span>
+              <kbd class="bg-light">Ctrl+Shift+U</kbd>
+            </div>
+            <div class="hotkey-item d-flex justify-content-between align-items-center mb-1">
+              <span>Download Current</span>
+              <kbd class="bg-light">Ctrl+Shift+D</kbd>
+            </div>
+            <div class="hotkey-item d-flex justify-content-between align-items-center mb-1">
+              <span>Back to Live</span>
+              <kbd class="bg-light">Esc</kbd>
+            </div>
+            <div class="hotkey-item d-flex justify-content-between align-items-center mb-1">
+              <span>Low Quality</span>
+              <kbd class="bg-light">Ctrl+Shift+1</kbd>
+            </div>
+            <div class="hotkey-item d-flex justify-content-between align-items-center mb-1">
+              <span>Medium Quality</span>
+              <kbd class="bg-light">Ctrl+Shift+2</kbd>
+            </div>
+            <div class="hotkey-item d-flex justify-content-between align-items-center mb-1">
+              <span>Test Notifications</span>
+              <kbd class="bg-light">Ctrl+Shift+N</kbd>
+            </div>
+            <div class="hotkey-item d-flex justify-content-between align-items-center mb-1">
+              <span>Notification Settings</span>
+              <kbd class="bg-light">Ctrl+Shift+O</kbd>
+            </div>
+            <div class="hotkey-item d-flex justify-content-between align-items-center mb-1">
+              <span>Performance Monitor</span>
+              <kbd class="bg-light">Ctrl+Shift+M</kbd>
+            </div>
+            <div class="hotkey-item d-flex justify-content-between align-items-center mb-1">
+              <span>Memory Cleanup</span>
+              <kbd class="bg-light">Ctrl+Shift+L</kbd>
+            </div>
+            <div class="hotkey-item d-flex justify-content-between align-items-center mb-1">
+              <span>Privacy Settings</span>
+              <kbd class="bg-light">Ctrl+Shift+P</kbd>
+            </div>
+            <div class="hotkey-item d-flex justify-content-between align-items-center mb-1">
+              <span>Encrypt Recordings</span>
+              <kbd class="bg-light">Ctrl+Shift+E</kbd>
+            </div>
+            <div class="hotkey-item d-flex justify-content-between align-items-center mb-1">
+              <span>High Quality</span>
+              <kbd class="bg-light">Ctrl+Shift+3</kbd>
+            </div>
+            <div class="hotkey-item d-flex justify-content-between align-items-center">
+              <span>Ultra Quality</span>
+              <kbd class="bg-light">Ctrl+Shift+4</kbd>
+            </div>
+            <div class="hotkey-item d-flex justify-content-between align-items-center mb-1">
+              <span>Pause/Resume Timer</span>
+              <kbd class="bg-light">Ctrl+Shift+T</kbd>
+            </div>
+            <div class="hotkey-item d-flex justify-content-between align-items-center">
+              <span>Set Countdown</span>
+              <kbd class="bg-light">Ctrl+Shift+C</kbd>
+            </div>
+            <div class="hotkey-item d-flex justify-content-between align-items-center mb-1">
+              <span>Trim Video</span>
+              <kbd class="bg-light">Ctrl+Shift+E</kbd>
+            </div>
+
+            <div class="hotkey-item d-flex justify-content-between align-items-center mb-1">
+              <span>Add Text</span>
+              <kbd class="bg-light">Ctrl+Shift+L</kbd>
+            </div>
+            <div class="hotkey-item d-flex justify-content-between align-items-center">
+              <span>Add Watermark</span>
+              <kbd class="bg-light">Ctrl+Shift+W</kbd>
+            </div>
+            <div class="hotkey-item d-flex justify-content-between align-items-center mb-1">
+              <span>Export Video</span>
+              <kbd class="bg-light">Ctrl+Shift+X</kbd>
+            </div>
+            <div class="hotkey-item d-flex justify-content-between align-items-center mb-1">
+              <span>Export GIF</span>
+              <kbd class="bg-light">Ctrl+Shift+G</kbd>
+            </div>
+            <div class="hotkey-item d-flex justify-content-between align-items-center mb-1">
+              <span>Extract Audio</span>
+              <kbd class="bg-light">Ctrl+Shift+A</kbd>
+            </div>
+            <div class="hotkey-item d-flex justify-content-between align-items-center">
+              <span>Batch Export</span>
+              <kbd class="bg-light">Ctrl+Shift+B</kbd>
+            </div>
+          </div>
+        </div>
+        
+        <div class="recording-info" id="recording-info" style="display: none;">
+          <div class="recording-time" id="recording-time">00:00:00</div>
+          <div class="recording-stats">
+            <div class="stat-item">
+              <div class="stat-value" id="file-size">0 MB</div>
+              <div class="stat-label">File Size</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value" id="fps">30</div>
+              <div class="stat-label">FPS</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value" id="quality">HD</div>
+              <div class="stat-label">Quality</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Preview Panel -->
+      <div class="preview-panel">
+        <h5>Live Preview</h5>
+        <div class="preview-container">
+          <div class="preview-placeholder" id="preview-placeholder">
+            <div>
+              <img src="img/recording.svg" alt="Recording Preview" style="width: 64px; height: 64px; margin-bottom: 1rem;">
+              <div>Click "Start New Recording" to begin</div>
+            </div>
+          </div>
+          <video id="preview-video" class="preview-video" style="display: none;" autoplay muted></video>
+          <div class="recording-overlay" id="recording-overlay">REC</div>
+        </div>
+        
+        <!-- Playback Controls for Completed Recordings -->
+        <div id="playback-controls" style="display: none; margin-top: 1rem;">
+          <video id="playback-video" class="preview-video" controls></video>
+          <div class="d-flex justify-content-center gap-2 mt-2">
+            <button class="btn btn-success btn-sm" id="download-btn">
+              <i class="bi bi-download"></i> Download
+            </button>
+            <button class="btn btn-secondary btn-sm" id="back-to-live-btn">
+              <img src="img/recording.svg" alt="Back to Live" style="width: 16px; height: 16px; margin-right: 4px;">
+              Back to Live
+            </button>
+          </div>
+        </div>
+        
+        <!-- Completed Recordings Section -->
+        <div id="completed-recordings" style="display: none; margin-top: 1rem;">
+          <h6>Completed Recordings</h6>
+          <div id="completed-list" class="mt-2">
+            <!-- Completed recording items will be added here -->
+          </div>
+        </div>
+      </div>
+      
+      <!-- Recordings List Panel -->
+      <div class="recordings-panel">
+        <h5>Ongoing Recordings</h5>
+        <div id="recordings-list">
+          <!-- Ongoing recording items will be added here -->
+        </div>
+      </div>
+    </div>
+    
+    <div id="error-container"></div>
+    <div id="success-container"></div>
+  </div>
+
+  </div>
+  
+  <!-- Video Editing Modals -->
+  
+  <!-- Trim Video Modal -->
+  <div class="editing-modal" id="trim-modal">
+    <div class="editing-modal-content">
+      <h5>Trim Video</h5>
+      <p class="text-muted">Select start and end points for your video</p>
+      
+      <div class="editing-preview">
+        <video id="trim-video" class="editing-video" controls>
+          <source id="trim-video-source" type="video/webm">
+        </video>
+      </div>
+      
+      <div class="trim-controls">
+        <span id="trim-start-time">00:00</span>
+        <input type="range" class="trim-slider" id="trim-start-slider" min="0" max="100" value="0">
+        <span id="trim-end-time">00:00</span>
+      </div>
+      
+      <div class="trim-controls">
+        <span>End:</span>
+        <input type="range" class="trim-slider" id="trim-end-slider" min="0" max="100" value="100">
+        <span id="trim-duration">00:00</span>
+      </div>
+      
+      <div class="editing-controls">
+        <button class="btn btn-primary" id="apply-trim-btn">
+          <i class="bi bi-check"></i> Apply Trim
+        </button>
+        <button class="btn btn-secondary" id="cancel-trim-btn">
+          <i class="bi bi-x"></i> Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+  
+
+  
+  <!-- Add Text Overlay Modal -->
+  <div class="editing-modal" id="text-modal">
+    <div class="editing-modal-content">
+      <h5>Add Text Overlay</h5>
+      <p class="text-muted">Add text to your video</p>
+      
+      <div class="editing-preview">
+        <video id="text-video" class="editing-video" controls>
+          <source id="text-video-source" type="video/webm">
+        </video>
+        <div class="text-overlay" id="text-overlay">Sample Text</div>
+      </div>
+      
+      <div class="mb-3">
+        <label class="form-label">Text Content</label>
+        <input type="text" class="form-control" id="text-content" value="Sample Text" placeholder="Enter text...">
+      </div>
+      
+      <div class="row">
+        <div class="col-6">
+          <label class="form-label">Font Size</label>
+          <input type="range" class="form-range" id="text-size" min="12" max="72" value="24">
+          <small class="text-muted" id="text-size-value">24px</small>
+        </div>
+        <div class="col-6">
+          <label class="form-label">Color</label>
+          <input type="color" class="form-control form-control-color" id="text-color" value="#ffffff">
+        </div>
+      </div>
+      
+      <div class="editing-controls">
+        <button class="btn btn-primary" id="apply-text-btn">
+          <i class="bi bi-check"></i> Add Text
+        </button>
+        <button class="btn btn-secondary" id="cancel-text-btn">
+          <i class="bi bi-x"></i> Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Add Watermark Modal -->
+  <div class="editing-modal" id="watermark-modal">
+    <div class="editing-modal-content">
+      <h5>Add Watermark</h5>
+      <p class="text-muted">Add an image watermark to your video</p>
+      
+      <div class="editing-preview">
+        <video id="watermark-video" class="editing-video" controls>
+          <source id="watermark-video-source" type="video/webm">
+        </video>
+        <div class="watermark-overlay" id="watermark-overlay">
+          <img id="watermark-image" src="" alt="Watermark" style="max-width: 100px; max-height: 100px;">
+        </div>
+      </div>
+      
+      <div class="mb-3">
+        <label class="form-label">Upload Watermark Image</label>
+        <input type="file" class="form-control" id="watermark-file" accept="image/*">
+      </div>
+      
+      <div class="row">
+        <div class="col-6">
+          <label class="form-label">Opacity</label>
+          <input type="range" class="form-range" id="watermark-opacity" min="10" max="100" value="50">
+          <small class="text-muted" id="watermark-opacity-value">50%</small>
+        </div>
+        <div class="col-6">
+          <label class="form-label">Size</label>
+          <input type="range" class="form-range" id="watermark-size" min="20" max="200" value="100">
+          <small class="text-muted" id="watermark-size-value">100px</small>
+        </div>
+      </div>
+      
+      <div class="editing-controls">
+        <button class="btn btn-primary" id="apply-watermark-btn">
+          <i class="bi bi-check"></i> Add Watermark
+        </button>
+        <button class="btn btn-secondary" id="cancel-watermark-btn">
+          <i class="bi bi-x"></i> Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Export Modals -->
+  
+  <!-- Export Video Modal -->
+  <div class="export-modal" id="export-video-modal">
+    <div class="export-modal-content">
+      <h5>Export Video</h5>
+      <p class="text-muted">Choose format and quality settings for your video export</p>
+      
+      <div class="format-options">
+        <div class="format-option" data-format="mp4">
+          <div class="format-icon">🎬</div>
+          <div class="format-name">MP4</div>
+          <div class="format-details">H.264 • Universal</div>
+        </div>
+        <div class="format-option" data-format="webm">
+          <div class="format-icon">🌐</div>
+          <div class="format-name">WebM</div>
+          <div class="format-details">VP9 • Web Optimized</div>
+        </div>
+        <div class="format-option" data-format="avi">
+          <div class="format-icon">📹</div>
+          <div class="format-name">AVI</div>
+          <div class="format-details">Legacy • Compatible</div>
+        </div>
+        <div class="format-option" data-format="mov">
+          <div class="format-icon">🍎</div>
+          <div class="format-name">MOV</div>
+          <div class="format-details">Apple • Professional</div>
+        </div>
+      </div>
+      
+      <div class="mb-3">
+        <label class="form-label">Quality</label>
+        <select class="form-select" id="export-quality">
+          <option value="high">High Quality (Original)</option>
+          <option value="medium">Medium Quality</option>
+          <option value="low">Low Quality (Smaller File)</option>
+          <option value="custom">Custom Quality</option>
+        </select>
+      </div>
+      
+      <div class="mb-3" id="custom-quality-settings" style="display: none;">
+        <label class="form-label">Bitrate (Mbps)</label>
+        <input type="range" class="form-range" id="export-bitrate" min="1" max="20" value="5">
+        <div class="compression-info">
+          <span>1 Mbps</span>
+          <span id="bitrate-value">5 Mbps</span>
+          <span>20 Mbps</span>
+        </div>
+      </div>
+      
+      <div class="file-size-preview">
+        <div class="text-muted">Estimated File Size</div>
+        <div class="h5" id="estimated-size">Calculating...</div>
+      </div>
+      
+      <div class="d-flex gap-2 justify-content-center">
+        <button class="btn btn-primary" id="start-export-btn">
+          <i class="bi bi-download"></i> Start Export
+        </button>
+        <button class="btn btn-secondary" id="cancel-export-btn">
+          <i class="bi bi-x"></i> Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Export GIF Modal -->
+  <div class="export-modal" id="export-gif-modal">
+    <div class="export-modal-content">
+      <h5>Export as GIF</h5>
+      <p class="text-muted">Convert your video to an animated GIF</p>
+      
+      <div class="row">
+        <div class="col-6">
+          <label class="form-label">Frame Rate</label>
+          <select class="form-select" id="gif-fps">
+            <option value="10">10 FPS (Smaller)</option>
+            <option value="15" selected>15 FPS (Balanced)</option>
+            <option value="24">24 FPS (Smooth)</option>
+            <option value="30">30 FPS (High Quality)</option>
+          </select>
+        </div>
+        <div class="col-6">
+          <label class="form-label">Quality</label>
+          <select class="form-select" id="gif-quality">
+            <option value="low">Low (Smaller)</option>
+            <option value="medium" selected>Medium</option>
+            <option value="high">High (Larger)</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="mb-3">
+        <label class="form-label">Duration Limit</label>
+        <select class="form-select" id="gif-duration">
+          <option value="5">5 seconds</option>
+          <option value="10" selected>10 seconds</option>
+          <option value="15">15 seconds</option>
+          <option value="30">30 seconds</option>
+          <option value="60">1 minute</option>
+        </select>
+      </div>
+      
+      <div class="file-size-preview">
+        <div class="text-muted">Estimated File Size</div>
+        <div class="h5" id="gif-estimated-size">Calculating...</div>
+      </div>
+      
+      <div class="d-flex gap-2 justify-content-center">
+        <button class="btn btn-primary" id="start-gif-export-btn">
+          <i class="bi bi-image"></i> Create GIF
+        </button>
+        <button class="btn btn-secondary" id="cancel-gif-export-btn">
+          <i class="bi bi-x"></i> Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Extract Audio Modal -->
+  <div class="export-modal" id="extract-audio-modal">
+    <div class="export-modal-content">
+      <h5>Extract Audio</h5>
+      <p class="text-muted">Extract audio from your video recording</p>
+      
+      <div class="format-options">
+        <div class="format-option" data-audio-format="mp3">
+          <div class="format-icon">🎵</div>
+          <div class="format-name">MP3</div>
+          <div class="format-details">Compressed • Universal</div>
+        </div>
+        <div class="format-option" data-audio-format="wav">
+          <div class="format-icon">🎼</div>
+          <div class="format-name">WAV</div>
+          <div class="format-details">Uncompressed • Quality</div>
+        </div>
+        <div class="format-option" data-audio-format="ogg">
+          <div class="format-icon">🎧</div>
+          <div class="format-name">OGG</div>
+          <div class="format-details">Open Source • Efficient</div>
+        </div>
+        <div class="format-option" data-audio-format="aac">
+          <div class="format-icon">🎤</div>
+          <div class="format-name">AAC</div>
+          <div class="format-details">Advanced • Apple</div>
+        </div>
+      </div>
+      
+      <div class="mb-3">
+        <label class="form-label">Audio Quality</label>
+        <select class="form-select" id="audio-quality">
+          <option value="128">128 kbps (Good)</option>
+          <option value="192" selected>192 kbps (Better)</option>
+          <option value="256">256 kbps (High)</option>
+          <option value="320">320 kbps (Best)</option>
+        </select>
+      </div>
+      
+      <div class="file-size-preview">
+        <div class="text-muted">Estimated File Size</div>
+        <div class="h5" id="audio-estimated-size">Calculating...</div>
+      </div>
+      
+      <div class="d-flex gap-2 justify-content-center">
+        <button class="btn btn-primary" id="start-audio-extract-btn">
+          <i class="bi bi-music-note"></i> Extract Audio
+        </button>
+        <button class="btn btn-secondary" id="cancel-audio-extract-btn">
+          <i class="bi bi-x"></i> Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Batch Export Modal -->
+  <div class="export-modal" id="batch-export-modal">
+    <div class="export-modal-content">
+      <h5>Batch Export</h5>
+      <p class="text-muted">Export multiple recordings at once</p>
+      
+      <div class="mb-3">
+        <label class="form-label">Select Recordings</label>
+        <div class="batch-list" id="batch-list">
+          <!-- Batch items will be added here -->
+        </div>
+      </div>
+      
+      <div class="mb-3">
+        <label class="form-label">Export Format</label>
+        <select class="form-select" id="batch-format">
+          <option value="mp4">MP4 (Video)</option>
+          <option value="gif">GIF (Animated)</option>
+          <option value="mp3">MP3 (Audio)</option>
+        </select>
+      </div>
+      
+      <div class="progress-bar" id="batch-progress" style="display: none;">
+        <div class="progress-fill" id="batch-progress-fill"></div>
+      </div>
+      
+      <div class="d-flex gap-2 justify-content-center">
+        <button class="btn btn-primary" id="start-batch-export-btn">
+          <i class="bi bi-collection"></i> Start Batch Export
+        </button>
+        <button class="btn btn-secondary" id="cancel-batch-export-btn">
+          <i class="bi bi-x"></i> Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Export Settings Modal -->
+  <div class="export-modal" id="export-settings-modal">
+    <div class="export-modal-content">
+      <h5>Export Settings</h5>
+      <p class="text-muted">Configure default export preferences</p>
+      
+      <div class="mb-3">
+        <label class="form-label">Default Video Format</label>
+        <select class="form-select" id="default-video-format">
+          <option value="mp4">MP4</option>
+          <option value="webm">WebM</option>
+          <option value="avi">AVI</option>
+          <option value="mov">MOV</option>
+        </select>
+      </div>
+      
+      <div class="mb-3">
+        <label class="form-label">Default Quality</label>
+        <select class="form-select" id="default-quality">
+          <option value="high">High Quality</option>
+          <option value="medium" selected>Medium Quality</option>
+          <option value="low">Low Quality</option>
+        </select>
+      </div>
+      
+      <div class="mb-3">
+        <label class="form-label">Default Audio Format</label>
+        <select class="form-select" id="default-audio-format">
+          <option value="mp3">MP3</option>
+          <option value="wav">WAV</option>
+          <option value="ogg">OGG</option>
+          <option value="aac">AAC</option>
+        </select>
+      </div>
+      
+      <div class="form-check mb-3">
+        <input class="form-check-input" type="checkbox" id="auto-export" checked>
+        <label class="form-check-label" for="auto-export">
+          Auto-export after recording
+        </label>
+      </div>
+      
+      <div class="form-check mb-3">
+        <input class="form-check-input" type="checkbox" id="include-metadata" checked>
+        <label class="form-check-label" for="include-metadata">
+          Include recording metadata
+        </label>
+      </div>
+      
+      <div class="d-flex gap-2 justify-content-center">
+        <button class="btn btn-primary" id="save-export-settings-btn">
+          <i class="bi bi-check"></i> Save Settings
+        </button>
+        <button class="btn btn-secondary" id="cancel-export-settings-btn">
+          <i class="bi bi-x"></i> Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Countdown Modal -->
+  <div class="countdown-modal" id="countdown-modal">
+    <div class="countdown-modal-content">
+      <h5>Set Recording Countdown</h5>
+      <p class="text-muted">Set a countdown timer to automatically stop recording</p>
+      
+      <div class="countdown-inputs">
+        <div>
+          <input type="number" class="countdown-input" id="countdown-hours" min="0" max="23" value="0" placeholder="0">
+          <div class="countdown-label">Hours</div>
+        </div>
+        <div>
+          <input type="number" class="countdown-input" id="countdown-minutes" min="0" max="59" value="5" placeholder="0">
+          <div class="countdown-label">Minutes</div>
+        </div>
+        <div>
+          <input type="number" class="countdown-input" id="countdown-seconds" min="0" max="59" value="0" placeholder="0">
+          <div class="countdown-label">Seconds</div>
+        </div>
+      </div>
+      
+      <div class="d-flex gap-2 justify-content-center">
+        <button class="btn btn-primary" id="start-countdown-btn">
+          <i class="bi bi-play"></i> Start Countdown
+        </button>
+        <button class="btn btn-secondary" id="cancel-countdown-btn">
+          <i class="bi bi-x"></i> Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Notification Settings Modal -->
+  <div class="notification-modal" id="notification-settings-modal">
+    <div class="notification-modal-content">
+      <h5>Notification Settings</h5>
+      <p class="text-muted">Configure how you want to be notified about recording events</p>
+      
+      <div class="mb-3">
+        <h6>Desktop Notifications</h6>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="notify-recording-start" checked>
+          <label class="form-check-label" for="notify-recording-start">
+            Recording started
+          </label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="notify-recording-stop" checked>
+          <label class="form-check-label" for="notify-recording-stop">
+            Recording stopped
+          </label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="notify-recording-pause" checked>
+          <label class="form-check-label" for="notify-recording-pause">
+            Recording paused/resumed
+          </label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="notify-export-complete" checked>
+          <label class="form-check-label" for="notify-export-complete">
+            Export completed
+          </label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="notify-error" checked>
+          <label class="form-check-label" for="notify-error">
+            Recording errors
+          </label>
+        </div>
+      </div>
+      
+      <div class="mb-3">
+        <h6>Sound Alerts</h6>
+        <div class="notification-sound-preview">
+          <div class="sound-option" data-sound="chime">
+            <div class="sound-icon">🔔</div>
+            <div>Chime</div>
+          </div>
+          <div class="sound-option selected" data-sound="beep">
+            <div class="sound-icon">📢</div>
+            <div>Beep</div>
+          </div>
+          <div class="sound-option" data-sound="ding">
+            <div class="sound-icon">🎵</div>
+            <div>Ding</div>
+          </div>
+          <div class="sound-option" data-sound="none">
+            <div class="sound-icon">🔇</div>
+            <div>None</div>
+          </div>
+        </div>
+        <button class="btn btn-sm btn-outline-secondary" id="test-sound-btn">
+          <i class="bi bi-volume-up"></i> Test Sound
+        </button>
+      </div>
+      
+      <div class="mb-3">
+        <h6>Visual Alerts</h6>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="visual-recording-indicator" checked>
+          <label class="form-check-label" for="visual-recording-indicator">
+            Animated recording indicator
+          </label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="visual-status-flash" checked>
+          <label class="form-check-label" for="visual-status-flash">
+            Status bar flash on events
+          </label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="visual-toast-notifications" checked>
+          <label class="form-check-label" for="visual-toast-notifications">
+            Toast notifications
+          </label>
+        </div>
+      </div>
+      
+      <div class="mb-3">
+        <h6>Notification Preview</h6>
+        <div class="notification-preview">
+          <div class="visual-alert success" id="notification-preview">
+            <div class="visual-alert-header">
+              <div class="visual-alert-title">Recording Started</div>
+              <button class="visual-alert-close">&times;</button>
+            </div>
+            <div class="visual-alert-message">Screen recording has begun successfully</div>
+          </div>
+        </div>
+        <button class="btn btn-sm btn-outline-primary" id="preview-notification-btn">
+          <i class="bi bi-eye"></i> Preview Notification
+        </button>
+      </div>
+      
+      <div class="d-flex gap-2 justify-content-center">
+        <button class="btn btn-primary" id="save-notification-settings-btn">
+          <i class="bi bi-check"></i> Save Settings
+        </button>
+        <button class="btn btn-secondary" id="cancel-notification-settings-btn">
+          <i class="bi bi-x"></i> Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Performance Settings Modal -->
+  <div class="performance-modal" id="performance-settings-modal">
+    <div class="performance-modal-content">
+      <h5>Performance Settings</h5>
+      <p class="text-muted">Configure performance optimizations and monitoring</p>
+      
+      <div class="mb-3">
+        <h6>Memory Management</h6>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="auto-cleanup" checked>
+          <label class="form-check-label" for="auto-cleanup">
+            Auto-cleanup old recordings
+          </label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="compress-recordings" checked>
+          <label class="form-check-label" for="compress-recordings">
+            Compress recordings in background
+          </label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="limit-memory-usage" checked>
+          <label class="form-check-label" for="limit-memory-usage">
+            Limit memory usage per recording
+          </label>
+        </div>
+      </div>
+      
+      <div class="mb-3">
+        <h6>Compression Settings</h6>
+        <div class="compression-settings">
+          <div class="compression-option">
+            <div class="compression-info">
+              <div class="compression-name">H.264 Hardware Acceleration</div>
+              <div class="compression-description">Use GPU for video encoding (faster, lower CPU usage)</div>
+            </div>
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="hardware-acceleration" checked>
+            </div>
+          </div>
+          <div class="compression-option">
+            <div class="compression-info">
+              <div class="compression-name">Adaptive Bitrate</div>
+              <div class="compression-description">Automatically adjust quality based on system performance</div>
+            </div>
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="adaptive-bitrate" checked>
+            </div>
+          </div>
+          <div class="compression-option">
+            <div class="compression-info">
+              <div class="compression-name">Chunked Recording</div>
+              <div class="compression-description">Record in smaller chunks to reduce memory usage</div>
+            </div>
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="chunked-recording">
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="mb-3">
+        <h6>Background Processing</h6>
+        <div class="background-worker-status">
+          <div class="worker-indicator active" id="worker-status"></div>
+          <span>Background Worker: <span id="worker-status-text">Active</span></span>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="background-processing" checked>
+          <label class="form-check-label" for="background-processing">
+            Enable background processing for exports
+          </label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="auto-optimize" checked>
+          <label class="form-check-label" for="auto-optimize">
+            Auto-optimize recordings after completion
+          </label>
+        </div>
+      </div>
+      
+      <div class="mb-3">
+        <h6>Performance Monitoring</h6>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="real-time-monitoring" checked>
+          <label class="form-check-label" for="real-time-monitoring">
+            Real-time performance monitoring
+          </label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="performance-alerts" checked>
+          <label class="form-check-label" for="performance-alerts">
+            Performance alerts and warnings
+          </label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="auto-throttle" checked>
+          <label class="form-check-label" for="auto-throttle">
+            Auto-throttle when system is under load
+          </label>
+        </div>
+      </div>
+      
+      <div class="optimization-status success" id="optimization-status">
+        <div class="optimization-icon">✅</div>
+        <div class="optimization-text">All optimizations are enabled and working optimally</div>
+      </div>
+      
+      <div class="d-flex gap-2 justify-content-center">
+        <button class="btn btn-primary" id="save-performance-settings-btn">
+          <i class="bi bi-check"></i> Save Settings
+        </button>
+        <button class="btn btn-secondary" id="cancel-performance-settings-btn">
+          <i class="bi bi-x"></i> Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Performance Monitor Modal -->
+  <div class="performance-modal" id="performance-monitor-modal">
+    <div class="performance-modal-content">
+      <h5>Performance Monitor</h5>
+      <p class="text-muted">Real-time performance metrics and system health</p>
+      
+      <div class="performance-metrics">
+        <div class="metric-card">
+          <div class="metric-value" id="monitor-memory">0 MB</div>
+          <div class="metric-label">Memory Usage</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value" id="monitor-cpu">0%</div>
+          <div class="metric-label">CPU Usage</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value" id="monitor-fps">0 FPS</div>
+          <div class="metric-label">Recording FPS</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value" id="monitor-bitrate">0 Mbps</div>
+          <div class="metric-label">Current Bitrate</div>
+        </div>
+      </div>
+      
+      <div class="performance-chart" id="performance-chart">
+        <canvas id="performance-canvas" width="100%" height="100%"></canvas>
+      </div>
+      
+      <div class="row">
+        <div class="col-6">
+          <h6>System Health</h6>
+          <div class="optimization-status success">
+            <div class="optimization-icon">✅</div>
+            <div class="optimization-text">System performing well</div>
+          </div>
+        </div>
+        <div class="col-6">
+          <h6>Recommendations</h6>
+          <ul class="list-unstyled">
+            <li>✅ Memory usage is optimal</li>
+            <li>✅ CPU usage is within limits</li>
+            <li>✅ Recording quality is stable</li>
+          </ul>
+        </div>
+      </div>
+      
+      <div class="d-flex gap-2 justify-content-center">
+        <button class="btn btn-primary" id="refresh-performance-btn">
+          <i class="bi bi-arrow-clockwise"></i> Refresh
+        </button>
+        <button class="btn btn-secondary" id="close-performance-monitor-btn">
+          <i class="bi bi-x"></i> Close
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Privacy Settings Modal -->
+  <div class="privacy-modal" id="privacy-settings-modal">
+    <div class="privacy-modal-content">
+      <h5>Privacy & Security Settings</h5>
+      <p class="text-muted">Configure privacy controls and security features for your recordings</p>
+      
+      <div class="mb-3">
+        <h6>Privacy Level</h6>
+        <div class="privacy-level-selector">
+          <div class="privacy-level-option" data-level="basic">
+            <div class="privacy-level-header">
+              <div class="privacy-level-name">Basic Privacy</div>
+              <div class="privacy-level-icon">🔒</div>
+            </div>
+            <div class="privacy-level-description">Standard privacy protection for general use</div>
+            <div class="privacy-level-features">
+              • Local storage only<br>
+              • No data collection<br>
+              • Basic encryption
+            </div>
+          </div>
+          <div class="privacy-level-option selected" data-level="enhanced">
+            <div class="privacy-level-header">
+              <div class="privacy-level-name">Enhanced Privacy</div>
+              <div class="privacy-level-icon">🛡️</div>
+            </div>
+            <div class="privacy-level-description">Enhanced security for sensitive content</div>
+            <div class="privacy-level-features">
+              • AES-256 encryption<br>
+              • Secure storage<br>
+              • Privacy controls
+            </div>
+          </div>
+          <div class="privacy-level-option" data-level="maximum">
+            <div class="privacy-level-header">
+              <div class="privacy-level-name">Maximum Privacy</div>
+              <div class="privacy-level-icon">🔐</div>
+            </div>
+            <div class="privacy-level-description">Maximum security for highly sensitive content</div>
+            <div class="privacy-level-features">
+              • Military-grade encryption<br>
+              • Secure key management<br>
+              • Auto-deletion options
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="mb-3">
+        <h6>Recording Privacy</h6>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="blur-sensitive-content" checked>
+          <label class="form-check-label" for="blur-sensitive-content">
+            Auto-blur sensitive content (passwords, personal info)
+          </label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="exclude-system-audio" checked>
+          <label class="form-check-label" for="exclude-system-audio">
+            Exclude system audio from recordings
+          </label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="privacy-watermark" checked>
+          <label class="form-check-label" for="privacy-watermark">
+            Add privacy watermark to recordings
+          </label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="auto-delete-old" checked>
+          <label class="form-check-label" for="auto-delete-old">
+            Auto-delete recordings older than 30 days
+          </label>
+        </div>
+      </div>
+      
+      <div class="mb-3">
+        <h6>Data Protection</h6>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="no-analytics" checked>
+          <label class="form-check-label" for="no-analytics">
+            Disable analytics and telemetry
+          </label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="local-processing" checked>
+          <label class="form-check-label" for="local-processing">
+            Process all data locally (no cloud uploads)
+          </label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="secure-deletion" checked>
+          <label class="form-check-label" for="secure-deletion">
+            Use secure deletion (overwrite data)
+          </label>
+        </div>
+      </div>
+      
+      <div class="privacy-warning">
+        <h6>⚠️ Privacy Notice</h6>
+        <p class="mb-0">Your recordings are stored locally and are not shared with any third parties. However, ensure you comply with local privacy laws and obtain necessary permissions before recording.</p>
+      </div>
+      
+      <div class="d-flex gap-2 justify-content-center">
+        <button class="btn btn-primary" id="save-privacy-settings-btn">
+          <i class="bi bi-check"></i> Save Settings
+        </button>
+        <button class="btn btn-secondary" id="cancel-privacy-settings-btn">
+          <i class="bi bi-x"></i> Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Encryption Modal -->
+  <div class="privacy-modal" id="encryption-modal">
+    <div class="privacy-modal-content">
+      <h5>Recording Encryption</h5>
+      <p class="text-muted">Secure your recordings with encryption to protect sensitive content</p>
+      
+      <div class="mb-3">
+        <h6>Encryption Settings</h6>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="enable-encryption" checked>
+          <label class="form-check-label" for="enable-encryption">
+            Enable AES-256 encryption for all recordings
+          </label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="encrypt-metadata" checked>
+          <label class="form-check-label" for="encrypt-metadata">
+            Encrypt recording metadata (names, timestamps)
+          </label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="auto-encrypt-new" checked>
+          <label class="form-check-label" for="auto-encrypt-new">
+            Automatically encrypt new recordings
+          </label>
+        </div>
+      </div>
+      
+      <div class="mb-3">
+        <h6>Encryption Key</h6>
+        <div class="encryption-key-input">
+          <input type="password" class="form-control" id="encryption-key" placeholder="Enter encryption key (min 8 characters)">
+          <button class="encryption-key-toggle" id="toggle-key-visibility">
+            <i class="bi bi-eye"></i>
+          </button>
+        </div>
+        <small class="text-muted">Use a strong password. This key will be required to decrypt your recordings.</small>
+      </div>
+      
+      <div class="mb-3">
+        <h6>Key Management</h6>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="remember-key" checked>
+          <label class="form-check-label" for="remember-key">
+            Remember encryption key for this session
+          </label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="auto-generate-key">
+          <label class="form-check-label" for="auto-generate-key">
+            Auto-generate secure keys
+          </label>
+        </div>
+      </div>
+      
+      <div class="encryption-status secure" id="encryption-status-display">
+        <div class="encryption-icon">✅</div>
+        <div class="encryption-text">Encryption is enabled and secure</div>
+      </div>
+      
+      <div class="d-flex gap-2 justify-content-center">
+        <button class="btn btn-primary" id="save-encryption-settings-btn">
+          <i class="bi bi-check"></i> Save Encryption
+        </button>
+        <button class="btn btn-secondary" id="cancel-encryption-btn">
+          <i class="bi bi-x"></i> Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Secure Storage Modal -->
+  <div class="privacy-modal" id="secure-storage-modal">
+    <div class="privacy-modal-content">
+      <h5>Secure Storage</h5>
+      <p class="text-muted">Configure secure storage options for your recordings</p>
+      
+      <div class="mb-3">
+        <h6>Storage Security</h6>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="secure-storage-enabled" checked>
+          <label class="form-check-label" for="secure-storage-enabled">
+            Enable secure storage for recordings
+          </label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="isolated-storage" checked>
+          <label class="form-check-label" for="isolated-storage">
+            Use isolated storage (separate from browser data)
+          </label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="backup-encryption" checked>
+          <label class="form-check-label" for="backup-encryption">
+            Encrypt backup files
+          </label>
+        </div>
+      </div>
+      
+      <div class="mb-3">
+        <h6>Storage Location</h6>
+        <select class="form-select" id="storage-location">
+          <option value="local">Local Storage (Default)</option>
+          <option value="isolated">Isolated Storage (Recommended)</option>
+          <option value="encrypted">Encrypted Storage (Maximum Security)</option>
+        </select>
+        <small class="text-muted">Choose where your recordings are stored</small>
+      </div>
+      
+      <div class="secure-storage-info">
+        <h6>Storage Security Checklist</h6>
+        <ul class="security-checklist" id="security-checklist">
+          <li class="secure">
+            <i class="bi bi-check-circle"></i>
+            <span>Local storage only - no cloud uploads</span>
+          </li>
+          <li class="secure">
+            <i class="bi bi-check-circle"></i>
+            <span>Encryption enabled for sensitive data</span>
+          </li>
+          <li class="secure">
+            <i class="bi bi-check-circle"></i>
+            <span>Secure deletion methods available</span>
+          </li>
+          <li class="warning">
+            <i class="bi bi-exclamation-triangle"></i>
+            <span>Consider backing up encryption keys</span>
+          </li>
+        </ul>
+      </div>
+      
+      <div class="d-flex gap-2 justify-content-center">
+        <button class="btn btn-primary" id="save-storage-settings-btn">
+          <i class="bi bi-check"></i> Save Storage Settings
+        </button>
+        <button class="btn btn-secondary" id="cancel-storage-btn">
+          <i class="bi bi-x"></i> Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Back to Top Button -->
+  <button class="back-to-top" id="back-to-top" title="Back to Top">
+    <i class="bi bi-arrow-up"></i>
+  </button>
+
+  <script src="bootstrap/bootstrap.bundle.min.js"></script>
+  <script src="offscreen.js"></script>
+</body>
+</html>
