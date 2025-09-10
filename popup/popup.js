@@ -56,6 +56,7 @@ async function render() {
     const dlBtn = li.querySelector(".dl");
     const playBtn = li.querySelector(".play");
     const isHls = item.type === 'hls' || /\.m3u8(\?|#|$)/i.test(item.url || '');
+    const isDash = item.type === 'dash' || /\.mpd(\?|#|$)/i.test(item.url || '');
     if (item.type === 'mse') {
       // Suggest recording for MSE streams
       modeSel.style.display = 'none';
@@ -64,6 +65,8 @@ async function render() {
       if (playBtn) { playBtn.textContent = 'Open'; playBtn.onclick = () => chrome.tabs.create({ url: item.url }); }
     } else if (isHls) {
       if (playBtn) playBtn.onclick = () => showPreview(item.url, 'hls');
+    } else if (isDash) {
+      if (playBtn) playBtn.onclick = () => showPreview(item.url, 'dash');
     } else {
       if (playBtn) playBtn.onclick = () => showPreview(item.url, 'file');
       dlBtn.onclick = async () => {
@@ -165,18 +168,29 @@ async function generateThumbnail(videoUrl) {
 }
 
 let currentHls = null;
+let currentShaka = null;
+let shakaInited = false;
 function showPreview(url, kind = 'file') {
   const modal = document.getElementById('previewModal');
   const video = document.getElementById('previewVideo');
   const closeBtn = document.getElementById('closePreview');
   if (!modal || !video) return;
   try { if (currentHls) { currentHls.destroy(); currentHls = null; } } catch {}
+  try { if (currentShaka) { currentShaka.destroy(); currentShaka = null; } } catch {}
   if (kind === 'hls' && window.Hls && window.Hls.isSupported()) {
     currentHls = new window.Hls({ maxBufferLength: 30 });
     currentHls.loadSource(url);
     currentHls.attachMedia(video);
   } else if (kind === 'hls' && video.canPlayType('application/vnd.apple.mpegurl')) {
     video.src = url;
+  } else if (kind === 'dash' && window.shaka) {
+    try {
+      if (!shakaInited) { window.shaka.polyfill.installAll(); shakaInited = true; }
+      currentShaka = new window.shaka.Player(video);
+      currentShaka.load(url).catch(() => { window.open(url, '_blank'); });
+    } catch {
+      window.open(url, '_blank');
+    }
   } else {
     video.src = url;
   }
@@ -190,6 +204,7 @@ function hidePreview() {
   const video = document.getElementById('previewVideo');
   if (!modal || !video) return;
   try { if (currentHls) { currentHls.destroy(); currentHls = null; } } catch {}
+  try { if (currentShaka) { currentShaka.destroy(); currentShaka = null; } } catch {}
   try { video.pause(); } catch {}
   video.removeAttribute('src');
   video.load();
