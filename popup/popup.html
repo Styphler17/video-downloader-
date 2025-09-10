@@ -31,6 +31,7 @@
           <span class="name"></span>
         </div>
         <div class="actions">
+          <button class="play">▶ Play</button>
           <button class="dl">Download</button>
           <select class="mode">
             <option value="auto">Auto</option>
@@ -42,7 +43,17 @@
       </li>
     </template>
 
+    <!-- Inline preview modal -->
+    <div id="previewModal" class="modal" style="display:none">
+      <div class="modal-content">
+        <div class="modal-header">
+          <span>Preview</span>
+          <button id="closePreview" class="icon-btn" aria-label="Close">✕</button>
+        </div>
+        <video id="previewVideo" controls style="width:100%; max-height:320px; background:#000"></video>
+      </div>
+    </div>
+
     <script type="module" src="popup.js"></script>
   </body>
   </html>
-

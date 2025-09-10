@@ -100,6 +100,9 @@ button:hover {
   display: flex;
   gap: 6px;
 }
+.actions .play {
+  border-color: var(--acc);
+}
 
 .tip {
   margin: 8px 12px 0 12px;
@@ -114,4 +117,30 @@ button:hover {
   padding: 4px 6px;
   border-radius: 6px;
   border: 1px solid var(--acc);
+}
+
+/* Simple modal */
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.modal-content {
+  background: var(--card);
+  color: var(--fg);
+  width: 340px;
+  border: 1px solid #2a2a35;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-bottom: 1px solid #222;
 }
