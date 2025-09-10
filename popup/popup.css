@@ -95,3 +95,12 @@ button:hover {
   display: flex;
   gap: 6px;
 }
+
+.tip {
+  margin: 8px 12px 0 12px;
+  padding: 8px 10px;
+  background: var(--card);
+  border: 1px dashed var(--acc);
+  border-radius: 8px;
+  color: var(--muted);
+}

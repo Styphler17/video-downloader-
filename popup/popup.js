@@ -29,8 +29,23 @@ async function render() {
     kind: "get-media-list",
     tabId: tab.id,
   });
+  const tipEl = document.getElementById("tip");
   listEl.innerHTML = "";
-  for (const item of res.items || []) {
+  const items = res.items || [];
+  const downloadable = items.some((i) => i.type === "file" || i.type === "hls" || i.type === "dash");
+  const msePresent = items.some((i) => i.type === "mse");
+  if (tipEl) {
+    if (!downloadable && msePresent) {
+      tipEl.textContent = 'Streaming detected (MSE). Use "Record Tab" to capture.';
+      tipEl.style.display = '';
+    } else if (items.length === 0) {
+      tipEl.textContent = 'No media found yet. Play a video to detect streams.';
+      tipEl.style.display = '';
+    } else {
+      tipEl.style.display = 'none';
+    }
+  }
+  for (const item of items) {
     const li = tpl.content.firstElementChild.cloneNode(true);
     li.querySelector(".type").textContent = item.type;
     li.querySelector(".name").textContent = item.type === 'mse' ? 'MSE stream detected (use Record Tab)' : filenameFromUrl(item.url);

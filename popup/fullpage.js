@@ -38,6 +38,7 @@ async function render() {
       kind: "get-media-list",
       tabId: tabId,
     });
+    const tipEl = document.getElementById("tip");
     for (const item of res.items || []) {
       const li = tpl.content.firstElementChild.cloneNode(true);
       li.querySelector(".type").textContent = item.type;
@@ -89,6 +90,21 @@ async function render() {
         });
 
       listEl.appendChild(li);
+    }
+    // Tip logic
+    const items = res.items || [];
+    const downloadable = items.some((i) => i.type === "file" || i.type === "hls" || i.type === "dash");
+    const msePresent = items.some((i) => i.type === "mse");
+    if (tipEl) {
+      if (!downloadable && msePresent) {
+        tipEl.textContent = 'Streaming detected (MSE). Use "Record Tab" to capture.';
+        tipEl.style.display = '';
+      } else if (items.length === 0) {
+        tipEl.textContent = 'No media found yet. Play a video to detect streams.';
+        tipEl.style.display = '';
+      } else {
+        tipEl.style.display = 'none';
+      }
     }
   } else if (currentTab === "recordings") {
     const storage = await chrome.storage.local.get("recordings");
