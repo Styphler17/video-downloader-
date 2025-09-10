@@ -55,6 +55,17 @@ async function render() {
     const modeSel = li.querySelector(".mode");
     const dlBtn = li.querySelector(".dl");
     const playBtn = li.querySelector(".play");
+    const moreBtn = li.querySelector('.more');
+    const menu = li.querySelector('.ctx-menu');
+    const menuOpen = () => menu && (menu.style.display = 'flex');
+    const menuClose = () => menu && (menu.style.display = 'none');
+    if (moreBtn && menu) {
+      moreBtn.onclick = (e) => { e.stopPropagation();
+        const visible = menu.style.display !== 'none' && menu.style.display !== '' ? true : (menu.offsetParent !== null);
+        closeAllMenus();
+        if (!visible) menuOpen();
+      };
+    }
     const isHls = item.type === 'hls' || /\.m3u8(\?|#|$)/i.test(item.url || '');
     const isDash = item.type === 'dash' || /\.mpd(\?|#|$)/i.test(item.url || '');
     if (item.type === 'mse') {
@@ -94,6 +105,27 @@ async function render() {
       };
     }
 
+    // Context menu actions
+    const ctxOpen = li.querySelector('.ctx-open');
+    const ctxCopy = li.querySelector('.ctx-copy');
+    const ctxDownload = li.querySelector('.ctx-download');
+    if (ctxOpen) {
+      if (item.type === 'mse') ctxOpen.style.display = 'none';
+      else ctxOpen.onclick = () => chrome.tabs.create({ url: item.url });
+    }
+    if (ctxCopy) {
+      if (item.type === 'mse') ctxCopy.style.display = 'none';
+      else ctxCopy.onclick = async () => {
+        try { await navigator.clipboard.writeText(item.url); } catch {
+          const ta = document.createElement('textarea'); ta.value = item.url; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+        }
+        menuClose();
+      };
+    }
+    if (ctxDownload) {
+      ctxDownload.onclick = () => dlBtn.click();
+    }
+
     // Generate thumbnail
     const imgEl = li.querySelector(".thumbnail");
     const enableThumbs = await shouldGenerateThumbs();
@@ -108,6 +140,11 @@ async function render() {
     listEl.appendChild(li);
   }
 }
+
+function closeAllMenus() {
+  document.querySelectorAll('.ctx-menu').forEach(m => (m.style.display = 'none'));
+}
+document.addEventListener('click', () => closeAllMenus());
 
 const placeholderSvg = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIGZpbGw9IiNkZGQiLz48dGV4dCB4PSIzMiIgeT0iMzIiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuMzVlbSIgZmlsbD0iIzk5OSIgc3R5bGU9ImZvbnQtc2l6ZToxMHB4O2ZvbnQtZmFtaWx5OnN5c3RlbS11aSxzYW5zLXNlcmlmOyI+Tm8gVGh1bWI8L3RleHQ+PC9zdmc+";
 

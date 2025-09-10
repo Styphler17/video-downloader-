@@ -49,6 +49,17 @@ async function render() {
       const modeSel = li.querySelector(".mode");
       const dlBtn = li.querySelector(".dl");
       const playBtn = li.querySelector(".play");
+      const moreBtn = li.querySelector('.more');
+      const menu = li.querySelector('.ctx-menu');
+      const menuOpen = () => menu && (menu.style.display = 'flex');
+      const menuClose = () => menu && (menu.style.display = 'none');
+      if (moreBtn && menu) {
+        moreBtn.onclick = (e) => { e.stopPropagation();
+          const visible = menu.style.display !== 'none' && menu.style.display !== '' ? true : (menu.offsetParent !== null);
+          closeAllMenus();
+          if (!visible) menuOpen();
+        };
+      }
       if (item.type === 'mse') {
         modeSel.style.display = 'none';
         dlBtn.textContent = 'Record Tab';
@@ -60,9 +71,7 @@ async function render() {
           playBtn.onclick = () => chrome.tabs.create({ url: item.url });
         }
       } else {
-        if (playBtn) {
-          playBtn.onclick = () => chrome.tabs.create({ url: item.url });
-        }
+        if (playBtn) { playBtn.onclick = () => chrome.tabs.create({ url: item.url }); }
         dlBtn.onclick = async () => {
           const mode = modeSel.value === "auto" ? item.type : modeSel.value;
           if (mode === "file") {
@@ -101,6 +110,27 @@ async function render() {
 
       listEl.appendChild(li);
     }
+    // context menu actions (open/copy/download)
+    listEl.querySelectorAll('.item').forEach((liEl, idx) => {
+      const item = (res.items || [])[idx];
+      if (!item) return;
+      const ctxOpen = liEl.querySelector('.ctx-open');
+      const ctxCopy = liEl.querySelector('.ctx-copy');
+      const ctxDownload = liEl.querySelector('.ctx-download');
+      if (ctxOpen) {
+        if (item.type === 'mse') ctxOpen.style.display = 'none';
+        else ctxOpen.onclick = () => chrome.tabs.create({ url: item.url });
+      }
+      if (ctxCopy) {
+        if (item.type === 'mse') ctxCopy.style.display = 'none';
+        else ctxCopy.onclick = async () => {
+          try { await navigator.clipboard.writeText(item.url); } catch {
+            const ta = document.createElement('textarea'); ta.value = item.url; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+          }
+        };
+      }
+      if (ctxDownload) { ctxDownload.onclick = () => liEl.querySelector('.dl').click(); }
+    });
     // Tip logic
     const items = res.items || [];
     const downloadable = items.some((i) => i.type === "file" || i.type === "hls" || i.type === "dash");
@@ -133,6 +163,11 @@ async function render() {
     }
   }
 }
+
+function closeAllMenus() {
+  document.querySelectorAll('.ctx-menu').forEach(m => (m.style.display = 'none'));
+}
+document.addEventListener('click', () => closeAllMenus());
 
 async function generateThumbnail(videoUrl) {
   return new Promise((resolve, reject) => {

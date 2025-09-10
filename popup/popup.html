@@ -6,7 +6,7 @@
     <link rel="stylesheet" href="popup.css">
     <title>Video Downloader</title>
   </head>
-  <body>
+  <body class="popup">
     <header>
       <h1>Videos</h1>
       <button id="themeToggle" class="icon-btn" title="Toggle theme" aria-label="Toggle theme">🌓</button>
@@ -39,6 +39,12 @@
             <option value="hls">HLS → MP4</option>
             <option value="dash">DASH → MP4</option>
           </select>
+          <button class="more" title="More">⋯</button>
+          <div class="ctx-menu">
+            <button class="ctx-open">Open</button>
+            <button class="ctx-copy">Copy URL</button>
+            <button class="ctx-download">Download</button>
+          </div>
         </div>
       </li>
     </template>
