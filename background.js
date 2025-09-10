@@ -8,6 +8,12 @@ function updateBadgeCount(tabId) {
   chrome.action.setBadgeBackgroundColor({ color: '#3b82f6', tabId });
 }
 
+function broadcastUpdate(tabId) {
+  try {
+    chrome.runtime.sendMessage({ kind: 'media-list-updated', tabId }).catch(() => {});
+  } catch {}
+}
+
 // Ensure unique additions for a tab's media list
 function upsertMediaItem(tabId, item) {
   if (typeof tabId !== 'number' || tabId < 0) return;
@@ -16,6 +22,7 @@ function upsertMediaItem(tabId, item) {
     list.push(item);
     mediaLists.set(tabId, list);
     updateBadgeCount(tabId);
+    broadcastUpdate(tabId);
   }
 }
 
@@ -155,9 +162,12 @@ chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
     await chrome.downloads.download({ url: msg.url, filename: msg.filename });
     sendResponse({ filename: msg.filename });
   } else if (msg.kind === 'dom-video-candidates') {
-    // Store media items for the tab
-    mediaLists.set(sender.tab.id, msg.items);
-    updateBadgeCount(sender.tab.id);
+    // Merge only valid direct file URLs (exclude blob:, data:, and non-video extensions)
+    const tabId = sender.tab.id;
+    const items = (msg.items || []).filter((it) => /^https?:/i.test(it.url) && isVideoLikeUrl(it.url));
+    for (const it of items) {
+      upsertMediaItem(tabId, { id: `dom:${it.url}`, url: it.url, type: 'file', contentType: it.contentType || '' });
+    }
     sendResponse();
   } else if (msg.kind === 'mse-detected') {
     // Mark that this tab likely uses MSE streaming

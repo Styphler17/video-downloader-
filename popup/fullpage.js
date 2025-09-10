@@ -22,6 +22,12 @@ async function init() {
   const urlParams = new URLSearchParams(window.location.search);
   tabId = parseInt(urlParams.get("tabId"));
 
+  chrome.runtime.onMessage.addListener((msg) => {
+    if (msg && msg.kind === 'media-list-updated' && msg.tabId === tabId) {
+      scheduleRender();
+    }
+  });
+
   await render();
 }
 
@@ -163,6 +169,15 @@ async function render() {
       listEl.appendChild(li);
     }
   }
+}
+
+let __renderTimer = null;
+function scheduleRender() {
+  if (__renderTimer) return;
+  __renderTimer = setTimeout(async () => {
+    __renderTimer = null;
+    try { await render(); } catch {}
+  }, 150);
 }
 
 function closeAllMenus() {

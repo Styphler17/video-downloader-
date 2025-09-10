@@ -12,6 +12,13 @@ async function init() {
   document.getElementById("record").onclick = startRecord;
   document.getElementById("screenshot").onclick = screenshot;
   document.getElementById("fullPageBtn").onclick = openFullPage;
+  const tab = await getActiveTab();
+  window.__activeTabId = tab?.id;
+  chrome.runtime.onMessage.addListener((msg) => {
+    if (msg && msg.kind === 'media-list-updated' && msg.tabId === window.__activeTabId) {
+      scheduleRender();
+    }
+  });
   await render();
 }
 
@@ -25,6 +32,7 @@ function getActiveTab() {
 
 async function render() {
   const tab = await getActiveTab();
+  window.__activeTabId = tab?.id;
   const res = await chrome.runtime.sendMessage({
     kind: "get-media-list",
     tabId: tab.id,
@@ -143,6 +151,15 @@ async function render() {
 
     listEl.appendChild(li);
   }
+}
+
+let __renderTimer = null;
+function scheduleRender() {
+  if (__renderTimer) return;
+  __renderTimer = setTimeout(async () => {
+    __renderTimer = null;
+    try { await render(); } catch {}
+  }, 150);
 }
 
 function closeAllMenus() {
