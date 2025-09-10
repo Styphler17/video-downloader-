@@ -41,6 +41,31 @@ async function loadFFmpeg() {
   return ffmpeg;
 }
 
+async function ensureOffscreen() {
+  try {
+    // chrome.offscreen is MV3; guard for browsers lacking it
+    if (chrome.offscreen && !(await chrome.offscreen.hasDocument())) {
+      await chrome.offscreen.createDocument({
+        url: 'offscreen/offscreen.html',
+        reasons: ['WORKERS'],
+        justification: 'Run FFmpeg in DOM context to avoid SW limits'
+      });
+    }
+  } catch (e) {
+    console.warn('Offscreen not available:', e);
+  }
+}
+
+async function closeOffscreen() {
+  try {
+    if (chrome.offscreen && (await chrome.offscreen.hasDocument())) {
+      await chrome.offscreen.closeDocument();
+    }
+  } catch (e) {
+    console.warn('Offscreen close failed:', e);
+  }
+}
+
 async function hlsToMp4(masterUrl, { quality = 'best' } = {}) {
   const text = await fetchText(masterUrl);
   const variants = [];
@@ -108,10 +133,12 @@ chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
   } else if (msg.kind === 'download-hls') {
     await ensureOffscreen();
     const result = await chrome.runtime.sendMessage({ kind: 'offscreen-hls', url: msg.url, options: msg.options });
+    await closeOffscreen();
     sendResponse(result);
   } else if (msg.kind === 'download-dash') {
     await ensureOffscreen();
     const result = await chrome.runtime.sendMessage({ kind: 'offscreen-dash', url: msg.url, options: msg.options });
+    await closeOffscreen();
     sendResponse(result);
   } else if (msg.kind === 'download-direct') {
     await chrome.downloads.download({ url: msg.url, filename: msg.filename });
