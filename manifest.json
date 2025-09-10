@@ -9,6 +9,7 @@
         "activeTab",
         "scripting",
         "webRequest",
+        "offscreen",
         "tabs"
     ],
     "host_permissions": [

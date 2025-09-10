@@ -106,10 +106,12 @@ chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
     const items = mediaLists.get(msg.tabId) || [];
     sendResponse({ items });
   } else if (msg.kind === 'download-hls') {
-    const result = await hlsToMp4(msg.url, msg.options);
+    await ensureOffscreen();
+    const result = await chrome.runtime.sendMessage({ kind: 'offscreen-hls', url: msg.url, options: msg.options });
     sendResponse(result);
   } else if (msg.kind === 'download-dash') {
-    const result = await dashToMp4(msg.url, msg.options);
+    await ensureOffscreen();
+    const result = await chrome.runtime.sendMessage({ kind: 'offscreen-dash', url: msg.url, options: msg.options });
     sendResponse(result);
   } else if (msg.kind === 'download-direct') {
     await chrome.downloads.download({ url: msg.url, filename: msg.filename });
