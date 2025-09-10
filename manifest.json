@@ -29,23 +29,33 @@
         "128": "icons/icon128.png"
     },
     "options_page": "options/options.html",
-    "content_scripts": [
-        {
-            "matches": [
-                "<all_urls>"
-            ],
-            "js": [
-                "utils/common.js",
-                "content.js"
-            ],
-            "run_at": "document_idle",
-            "all_frames": true
-        }
-    ],
-    "web_accessible_resources": [
-        {
-            "resources": ["popup/fullpage.html"],
-            "matches": ["<all_urls>"]
-        }
-    ]
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "utils/common.js",
+        "content.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": true
+    },
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "inject/injector.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": true
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["popup/fullpage.html", "inject/hook.js"],
+      "matches": ["<all_urls>"]
+    }
+  ]
 }

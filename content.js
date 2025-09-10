@@ -45,6 +45,17 @@ chrome.runtime.onMessage.addListener((msg) => {
   }
 });
 
+// Listen for page-level MSE hook signals and forward to background
+window.addEventListener('message', (e) => {
+  try {
+    const d = e.data;
+    if (!d || !d.__uvd) return;
+    if (d.kind === 'mse-detected' || d.kind === 'mse-append') {
+      chrome.runtime.sendMessage({ kind: 'mse-detected', mime: d.mime || '' }).catch(() => {});
+    }
+  } catch {}
+}, false);
+
 async function startRecorder({
   mimeType = "video/webm;codecs=vp9",
   maxMs = 30 * 60 * 1000,

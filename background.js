@@ -159,6 +159,15 @@ chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
     mediaLists.set(sender.tab.id, msg.items);
     updateBadgeCount(sender.tab.id);
     sendResponse();
+  } else if (msg.kind === 'mse-detected') {
+    // Mark that this tab likely uses MSE streaming
+    upsertMediaItem(sender.tab.id, {
+      id: `mse:${sender.tab.id}`,
+      url: `mse://${sender.tab.id}`,
+      type: 'mse',
+      contentType: msg.mime || ''
+    });
+    sendResponse();
   } else if (msg.kind === 'record-start') {
     chrome.tabs.get(msg.tabId, (tab) => {
       if (tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://')) {

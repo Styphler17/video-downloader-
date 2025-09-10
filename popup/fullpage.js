@@ -41,33 +41,41 @@ async function render() {
     for (const item of res.items || []) {
       const li = tpl.content.firstElementChild.cloneNode(true);
       li.querySelector(".type").textContent = item.type;
-      li.querySelector(".name").textContent = filenameFromUrl(item.url);
+      li.querySelector(".name").textContent = item.type === 'mse' ? 'MSE stream detected (use Record Tab)' : filenameFromUrl(item.url);
 
       const modeSel = li.querySelector(".mode");
       const dlBtn = li.querySelector(".dl");
-      dlBtn.onclick = async () => {
-        const mode = modeSel.value === "auto" ? item.type : modeSel.value;
-        if (mode === "file") {
-          await chrome.runtime.sendMessage({
-            kind: "download-direct",
-            url: item.url,
-            filename: filenameFromUrl(item.url),
-          });
-        } else if (mode === "hls") {
-          await chrome.runtime.sendMessage({
-            kind: "download-hls",
-            url: item.url,
-            filename:
-              filenameFromUrl(item.url).replace(/\.(m3u8|ts)$/i, "") + ".mp4",
-          });
-        } else if (mode === "dash") {
-          await chrome.runtime.sendMessage({
-            kind: "download-dash",
-            url: item.url,
-            filename: filenameFromUrl(item.url).replace(/\.(mpd)$/i, "") + ".mp4",
-          });
-        }
-      };
+      if (item.type === 'mse') {
+        modeSel.style.display = 'none';
+        dlBtn.textContent = 'Record Tab';
+        dlBtn.onclick = async () => {
+          await chrome.runtime.sendMessage({ kind: 'record-start', tabId });
+        };
+      } else {
+        dlBtn.onclick = async () => {
+          const mode = modeSel.value === "auto" ? item.type : modeSel.value;
+          if (mode === "file") {
+            await chrome.runtime.sendMessage({
+              kind: "download-direct",
+              url: item.url,
+              filename: filenameFromUrl(item.url),
+            });
+          } else if (mode === "hls") {
+            await chrome.runtime.sendMessage({
+              kind: "download-hls",
+              url: item.url,
+              filename:
+                filenameFromUrl(item.url).replace(/\.(m3u8|ts)$/i, "") + ".mp4",
+            });
+          } else if (mode === "dash") {
+            await chrome.runtime.sendMessage({
+              kind: "download-dash",
+              url: item.url,
+              filename: filenameFromUrl(item.url).replace(/\.(mpd)$/i, "") + ".mp4",
+            });
+          }
+        };
+      }
 
       // Generate thumbnail
       const imgEl = li.querySelector(".thumbnail");
