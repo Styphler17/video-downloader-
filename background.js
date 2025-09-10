@@ -66,6 +66,21 @@ async function closeOffscreen() {
   }
 }
 
+let offscreenJobCount = 0;
+async function withOffscreen(task) {
+  await ensureOffscreen();
+  offscreenJobCount++;
+  try {
+    return await task();
+  } finally {
+    offscreenJobCount--;
+    if (offscreenJobCount <= 0) {
+      offscreenJobCount = 0;
+      await closeOffscreen();
+    }
+  }
+}
+
 async function hlsToMp4(masterUrl, { quality = 'best' } = {}) {
   const text = await fetchText(masterUrl);
   const variants = [];
@@ -131,14 +146,10 @@ chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
     const items = mediaLists.get(msg.tabId) || [];
     sendResponse({ items });
   } else if (msg.kind === 'download-hls') {
-    await ensureOffscreen();
-    const result = await chrome.runtime.sendMessage({ kind: 'offscreen-hls', url: msg.url, options: msg.options });
-    await closeOffscreen();
+    const result = await withOffscreen(() => chrome.runtime.sendMessage({ kind: 'offscreen-hls', url: msg.url, options: msg.options }));
     sendResponse(result);
   } else if (msg.kind === 'download-dash') {
-    await ensureOffscreen();
-    const result = await chrome.runtime.sendMessage({ kind: 'offscreen-dash', url: msg.url, options: msg.options });
-    await closeOffscreen();
+    const result = await withOffscreen(() => chrome.runtime.sendMessage({ kind: 'offscreen-dash', url: msg.url, options: msg.options }));
     sendResponse(result);
   } else if (msg.kind === 'download-direct') {
     await chrome.downloads.download({ url: msg.url, filename: msg.filename });
