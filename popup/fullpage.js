@@ -5,6 +5,7 @@ const videosTabBtn = document.getElementById("videosTab");
 const listEl = document.getElementById("list");
 const tpl = document.getElementById("item-tpl");
 const recordingTpl = document.getElementById("recording-tpl");
+const tabTpl = document.getElementById("tab-tpl");
 
 let currentTab = "videos";
 let tabId = null;
@@ -154,18 +155,60 @@ async function render() {
       }
     }
   } else if (currentTab === "recordings") {
+    // 1) Live list of tabs with preview and record controls
+    const tabs = await chrome.tabs.query({});
+    const now = Date.now();
+    const tabEls = new Map();
+    for (const t of tabs) {
+      if (!t.id || !t.title) continue;
+      const li = tabTpl.content.firstElementChild.cloneNode(true);
+      li.dataset.tabId = String(t.id);
+      li.querySelector('.name').textContent = t.title || t.url || `Tab ${t.id}`;
+      li.querySelector('.timestamp').textContent = `${t.active ? 'Active' : 'Inactive'} • Window ${t.windowId}`;
+      const img = li.querySelector('.thumbnail');
+      img.src = '';
+      const switchBtn = li.querySelector('.switch');
+      const recBtn = li.querySelector('.rec');
+      switchBtn.onclick = async () => {
+        await chrome.windows.update(t.windowId, { focused: true });
+        await chrome.tabs.update(t.id, { active: true });
+      };
+      recBtn.onclick = async () => {
+        await chrome.runtime.sendMessage({ kind: 'record-start', tabId: t.id, options: {} });
+      };
+      listEl.appendChild(li);
+      tabEls.set(t.id, { li, img, tab: t });
+    }
+
+    // 2) Update previews for active tabs per window
+    const updatePreviews = async () => {
+      try {
+        const winIds = new Set(tabs.map(t => t.windowId));
+        for (const wId of winIds) {
+          try {
+            const dataUrl = await chrome.tabs.captureVisibleTab(wId, { format: 'jpeg', quality: 60 });
+            // Find active tab in this window
+            const t = tabs.find(tt => tt.windowId === wId && tt.active);
+            if (!t) continue;
+            const el = tabEls.get(t.id);
+            if (el) el.img.src = dataUrl;
+          } catch {}
+        }
+      } catch {}
+    };
+    updatePreviews();
+    if (window.__prevTimer) clearInterval(window.__prevTimer);
+    window.__prevTimer = setInterval(updatePreviews, 2000);
+
+    // 3) Historical recordings below
     const storage = await chrome.storage.local.get("recordings");
     const recordings = storage.recordings || [];
     for (const rec of recordings) {
       const li = recordingTpl.content.firstElementChild.cloneNode(true);
       li.querySelector(".name").textContent = rec.filename;
       li.querySelector(".timestamp").textContent = new Date(rec.timestamp).toLocaleString();
-
       const dlBtn = li.querySelector(".dl");
-      dlBtn.onclick = async () => {
-        await chrome.downloads.download({ url: rec.url, filename: rec.filename });
-      };
-
+      dlBtn.onclick = async () => { await chrome.downloads.download({ url: rec.url, filename: rec.filename }); };
       listEl.appendChild(li);
     }
   }

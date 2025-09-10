@@ -120,6 +120,16 @@ button:hover {
   border: 1px solid var(--acc);
 }
 
+.status {
+  margin: 8px 12px 0 12px;
+  padding: 6px 8px;
+  background: var(--card);
+  border: 1px solid #2a2a35;
+  border-radius: 8px;
+  color: var(--fg);
+  font-size: 12px;
+}
+
 /* Simple modal */
 .modal {
   position: fixed;

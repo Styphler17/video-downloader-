@@ -48,15 +48,29 @@
     </template>
 
     <template id="recording-tpl">
-      <li class="item recording">
-        <div class="meta">
-          <span class="name"></span>
-          <span class="timestamp"></span>
-        </div>
-        <div class="actions">
-          <button class="dl">Download</button>
-        </div>
-      </li>
+        <li class="item recording">
+            <div class="meta">
+                <span class="name"></span>
+                <span class="timestamp"></span>
+            </div>
+            <div class="actions">
+                <button class="dl">Download</button>
+            </div>
+        </li>
+    </template>
+
+    <template id="tab-tpl">
+        <li class="item recording">
+            <img class="thumbnail" src="" alt="Preview" />
+            <div class="meta">
+                <span class="name"></span>
+                <span class="timestamp"></span>
+            </div>
+            <div class="actions">
+                <button class="switch">Switch</button>
+                <button class="rec">Record</button>
+            </div>
+        </li>
     </template>
 
     <script type="module" src="fullpage.js"></script>

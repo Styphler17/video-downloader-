@@ -18,6 +18,21 @@ async function init() {
     if (msg && msg.kind === 'media-list-updated' && msg.tabId === window.__activeTabId) {
       scheduleRender();
     }
+    if (msg && msg.kind === 'hls-progress') {
+      const stEl = document.getElementById('status');
+      if (!stEl) return;
+      const show = () => { stEl.style.display = ''; };
+      if (window.__activeDownloadUrl && msg.url && msg.url.startsWith(window.__activeDownloadUrl)) {
+        show();
+        const pct = msg.total ? Math.floor((msg.fetched / msg.total) * 100) : 0;
+        stEl.textContent = `HLS downloading: ${msg.fetched}/${msg.total} (${pct}%)`;
+      }
+    }
+    if (msg && msg.kind === 'hls-complete') {
+      const stEl = document.getElementById('status');
+      if (stEl) { stEl.textContent = 'HLS download complete'; setTimeout(() => { stEl.style.display = 'none'; }, 1500); }
+      window.__activeDownloadUrl = null;
+    }
   });
   await render();
 }
@@ -101,11 +116,12 @@ async function render() {
             filename: filenameFromUrl(item.url),
           });
         } else if (mode === "hls") {
-        const st = await chrome.storage.sync.get(['hlsQuality']);
+        const st = await chrome.storage.sync.get(['hlsQuality','hlsLiveMinutes']);
+        window.__activeDownloadUrl = item.url;
         await chrome.runtime.sendMessage({
           kind: "download-hls",
           url: item.url,
-          options: { quality: st.hlsQuality || 'best' },
+          options: { quality: st.hlsQuality || 'best', maxSeconds: Math.max(60, (parseInt(st.hlsLiveMinutes||60,10))*60) },
           filename:
             filenameFromUrl(item.url).replace(/\.(m3u8|ts)$/i, "") + ".mp4",
         });

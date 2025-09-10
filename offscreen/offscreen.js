@@ -74,6 +74,7 @@ async function hlsToMp4(masterUrl, { quality = 'best', filename, maxSeconds = 72
   }
   
   const segUrls = segs.map(s => s.uri);
+  try { chrome.runtime.sendMessage({ kind: 'hls-progress', url: masterUrl, fetched: 0, total: segUrls.length }); } catch {}
   const listName = 'list.txt';
   const entries = [];
   for (let i=0;i<segUrls.length;i++) entries.push(`file '${i}.ts'`);
@@ -83,6 +84,7 @@ async function hlsToMp4(masterUrl, { quality = 'best', filename, maxSeconds = 72
     const r = await fetch(segUrls[i], { credentials: 'include', cache: 'no-cache' });
     const buf = new Uint8Array(await r.arrayBuffer());
     ffmpeg.FS('writeFile', `${i}.ts`, buf);
+    try { chrome.runtime.sendMessage({ kind: 'hls-progress', url: masterUrl, fetched: i+1, total: segUrls.length }); } catch {}
   }
   await ffmpeg.run('-f','concat','-safe','0','-i', listName, '-c','copy','out.mp4');
   const data = ffmpeg.FS('readFile', 'out.mp4');
@@ -90,6 +92,7 @@ async function hlsToMp4(masterUrl, { quality = 'best', filename, maxSeconds = 72
   const url = URL.createObjectURL(blob);
   const outName = filename || filenameFromUrl(masterUrl).replace(/\.(m3u8|ts)$/i, '') + '.mp4';
   await chrome.downloads.download({ url, filename: outName });
+  try { chrome.runtime.sendMessage({ kind: 'hls-complete', url: masterUrl, filename: outName }); } catch {}
   try {
     ffmpeg.FS('unlink', 'out.mp4');
     ffmpeg.FS('unlink', listName);
