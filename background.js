@@ -35,7 +35,8 @@ async function fetchText(url) {
 
 async function loadFFmpeg() {
   const { createFFmpeg } = await import('./libs/ffmpeg.min.js');
-  const ffmpeg = createFFmpeg({ log: true });
+  const corePath = chrome.runtime.getURL('libs/ffmpeg-core.js');
+  const ffmpeg = createFFmpeg({ log: true, corePath });
   await ffmpeg.load();
   return ffmpeg;
 }
