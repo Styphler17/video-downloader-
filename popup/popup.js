@@ -262,27 +262,42 @@ function toggleInlinePreview(videoEl, containerEl, { url, kind }) {
   containerEl.style.display = '';
   // Ensure previous destroyed
   destroyInline(videoEl, containerEl);
+  videoEl.muted = true; // allow autoplay without gesture
   if (kind === 'hls' && window.Hls && window.Hls.isSupported()) {
-    const h = new window.Hls({ maxBufferLength: 30 });
+    const h = new window.Hls({
+      maxBufferLength: 30,
+      lowLatencyMode: true,
+      enableWorker: true,
+      fetchSetup: (ctx, init) => Object.assign(init || {}, { credentials: 'include' }),
+      xhrSetup: (xhr) => { try { xhr.withCredentials = true; } catch {} }
+    });
     h.loadSource(url);
     h.attachMedia(videoEl);
+    h.on(window.Hls.Events.MANIFEST_PARSED, () => tryPlay(videoEl));
     __inlinePlayers.set(videoEl, { kind, hls: h });
   } else if (kind === 'hls' && videoEl.canPlayType('application/vnd.apple.mpegurl')) {
     videoEl.src = url;
+    tryPlay(videoEl);
     __inlinePlayers.set(videoEl, { kind });
   } else if (kind === 'dash' && window.shaka) {
     if (!shakaInited) { window.shaka.polyfill.installAll(); shakaInited = true; }
     try {
       const p = new window.shaka.Player(videoEl);
-      p.load(url).catch(() => { chrome.tabs.create({ url }); });
+      try { p.getNetworkingEngine().registerRequestFilter((type, request) => { request.allowCrossSiteCredentials = true; }); } catch {}
+      p.load(url).then(() => tryPlay(videoEl)).catch(() => { chrome.tabs.create({ url }); });
       __inlinePlayers.set(videoEl, { kind, shaka: p });
     } catch {
       chrome.tabs.create({ url });
     }
   } else {
     videoEl.src = url;
+    tryPlay(videoEl);
     __inlinePlayers.set(videoEl, { kind });
   }
+}
+
+function tryPlay(videoEl) {
+  try { const p = videoEl.play(); if (p && p.catch) p.catch(()=>{}); } catch {}
 }
 
 function destroyInline(videoEl, containerEl) {
